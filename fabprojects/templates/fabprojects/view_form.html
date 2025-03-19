@@ -1,0 +1,121 @@
+{% extends 'fabprojects/base_projects.html' %}
+{% load crispy_forms_tags %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>{{ title }}</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                            <a href="{% url 'fabprojects:view_list' %}" class="btn btn-secondary">Annuler</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mapping des types de champs pour l'affichage
+        const fieldTypeDisplay = {
+            'text': 'Texte',
+            'number': 'Nombre',
+            'date': 'Date',
+            'boolean': 'Oui/Non',
+            'choice': 'Choix'
+        };
+
+        // Initialiser Select2 pour les champs personnalisés
+        $('#id_custom_fields').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: "Sélectionnez les champs personnalisés",
+            allowClear: true,
+            language: {
+                noResults: function() {
+                    return "Aucun résultat trouvé";
+                },
+                searching: function() {
+                    return "Recherche en cours...";
+                }
+            },
+            matcher: function(params, data) {
+                // Si pas de terme de recherche, retourner tous les éléments
+                if ($.trim(params.term) === '') {
+                    return data;
+                }
+
+                // Si pas de données, retourner null
+                if (typeof data.text === 'undefined') {
+                    return null;
+                }
+
+                // Rechercher dans le nom du champ (ignorant le type entre parenthèses)
+                const searchText = data.text.split(' (')[0].toLowerCase();
+                const searchTerm = params.term.toLowerCase();
+
+                if (searchText.indexOf(searchTerm) > -1) {
+                    return data;
+                }
+
+                return null;
+            }
+        });
+
+        function loadCustomFields(fablabId, selectedIds = []) {
+            if (fablabId) {
+                // Récupérer les champs personnalisés du FabLab
+                $.get(`{% url 'fabprojects:custom_field_list_json' %}?fablab=${fablabId}`, function(data) {
+                    // Mettre à jour les options du select
+                    const customFieldsSelect = $('#id_custom_fields');
+                    customFieldsSelect.empty();
+                    
+                    data.custom_fields.forEach(function(field) {
+                        const displayType = fieldTypeDisplay[field.field_type] || field.field_type;
+                        const option = new Option(
+                            `${field.name} (${displayType})`, 
+                            field.id, 
+                            selectedIds.includes(field.id), 
+                            selectedIds.includes(field.id)
+                        );
+                        customFieldsSelect.append(option);
+                    });
+                    
+                    // Déclencher le changement pour Select2
+                    customFieldsSelect.trigger('change');
+                });
+            }
+        }
+
+        // Charger les champs personnalisés au démarrage
+        const fablabId = $('#id_fablab').val();
+        const selectedIds = $('#id_custom_fields').val().map(Number);
+        if (fablabId) {
+            loadCustomFields(fablabId, selectedIds);
+        }
+
+        // Gérer le changement de FabLab
+        $('#id_fablab').on('change', function() {
+            const fablabId = $(this).val();
+            const selectedIds = $('#id_custom_fields').val().map(Number);
+            loadCustomFields(fablabId, selectedIds);
+        });
+    });
+</script>
+{% endblock %} 

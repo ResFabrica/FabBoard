@@ -1,0 +1,31 @@
+{% extends 'fabprojects/base_projects.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Confirmer la suppression</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <p class="lead">
+                        Êtes-vous sûr de vouloir supprimer "{{ object }}" ?
+                    </p>
+                    <p class="text-danger">
+                        Cette action est irréversible.
+                    </p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                        <a href="{{ cancel_url }}" class="btn btn-secondary">Annuler</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

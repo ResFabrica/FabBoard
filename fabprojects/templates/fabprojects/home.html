@@ -1,0 +1,333 @@
+{% extends 'fabprojects/base_projects.html' %}
+
+{% block project_content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="mb-0">Gestion des Projets</h1>
+            <div>
+                <a href="{% url 'fabprojects:view_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nouvelle Vue
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4 mobile-hide">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-tasks me-2"></i>Mes Tâches
+                    </h5>
+                    <a href="{% url 'fabprojects:my_tasks' %}" class="btn btn-sm btn-outline-primary">
+                        Voir tout
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if tasks %}
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0 w-100">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="border-0" style="width: 25%">Tâche</th>
+                                <th class="border-0" style="width: 23%">Tags</th>
+                                <th class="border-0" style="width: 15%">Vue</th>
+                                <th class="border-0" style="width: 12%">Deadline</th>
+                                <th class="border-0" style="width: 10%">Assignés</th>
+                                <th class="border-0 text-end" style="width: 15%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'fabprojects:task_detail' task.id %}" class="text-decoration-none fw-medium text-truncate d-block">
+                                        {{ task.title }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if task.tags.all %}
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for tag in task.tags.all %}
+                                        <span class="badge rounded-pill" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'fabprojects:view_detail' task.section.view.id %}" class="text-decoration-none text-truncate d-block">
+                                        <i class="fas fa-project-diagram me-1"></i>
+                                        {{ task.section.view.name }}
+                                        <small class="d-block text-muted mt-1">{{ task.section.name }}</small>
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if task.deadline %}
+                                    <span class="badge {% if task.is_overdue %}bg-danger{% elif task.is_due_soon %}bg-warning{% else %}bg-primary{% endif %}">
+                                        <i class="far fa-calendar-alt me-1"></i>
+                                        {{ task.deadline|date:"d/m/Y" }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if task.assigned_users.all %}
+                                    <div class="d-flex align-items-center">
+                                        {% for user in task.assigned_users.all|slice:":3" %}
+                                        <div class="avatar-circle-sm d-inline-flex" style="background-color: {{ user.profile.avatar_color|default:'#007bff' }}" title="{{ user.get_full_name }}">
+                                            {{ user.get_initials }}
+                                        </div>
+                                        {% endfor %}
+                                        {% if task.assigned_users.all|length > 3 %}
+                                        <span class="badge bg-secondary ms-1">+{{ task.assigned_users.all|length|add:"-3" }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <a href="{% url 'fabprojects:task_detail' task.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-sm btn-outline-primary" onclick="quickEditTask({{ task.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Aucune tâche en cours</p>
+                    <a href="{% url 'fabprojects:my_tasks' %}" class="btn btn-primary mt-3">
+                        Voir mes tâches
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-columns me-2"></i>Vues Récentes
+                    </h5>
+                    <a href="{% url 'fabprojects:view_list' %}" class="btn btn-sm btn-outline-primary">
+                        Voir tout
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if views %}
+                <div class="list-group list-group-flush">
+                    {% for view in views %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{% url 'fabprojects:view_detail' view.id %}" class="text-decoration-none">
+                                        {{ view.name }}
+                                    </a>
+                                </h6>
+                                <div class="text-muted small">
+                                    <i class="fas fa-building me-1"></i>
+                                    {{ view.fablab.name }}
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="{% url 'fabprojects:view_edit' view.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'fabprojects:view_detail' view.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-columns fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Aucune vue créée</p>
+                    <a href="{% url 'fabprojects:view_create' %}" class="btn btn-primary mt-3">
+                        <i class="fas fa-plus"></i> Créer une vue
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if user_fablabs %}
+    {% for fablab in user_fablabs %}
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-building me-2"></i>{{ fablab.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-tasks me-2"></i>Tâches en cours
+                            </div>
+                            <span class="badge bg-primary">{{ fablab.task_count }}</span>
+                        </div>
+                    </div>
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-columns me-2"></i>Vues
+                            </div>
+                            <span class="badge bg-secondary">{{ fablab.view_count }}</span>
+                        </div>
+                    </div>
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-users me-2"></i>Membres
+                            </div>
+                            <span class="badge bg-info">{{ fablab.users.count }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{% url 'fabprojects:fablab_tasks' %}?fablab={{ fablab.id }}" class="btn btn-outline-primary btn-sm w-100">
+                        Voir les tâches
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<style>
+.avatar-circle-sm {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: white;
+    font-size: 0.7rem;
+    align-items: center;
+    justify-content: center;
+    margin-left: -8px;
+    border: 2px solid white;
+}
+
+.avatar-circle-sm:first-child {
+    margin-left: 0;
+}
+
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.table > :not(caption) > * > * {
+    padding: 1rem;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.btn-group .btn:not(:last-child) {
+    border-right: 0;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #f8f9fa;
+}
+
+/* Personnalisation de la barre de défilement */
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+/* Ajout des styles pour la gestion du texte */
+.text-truncate {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.table {
+    table-layout: fixed;
+}
+
+.gap-1 {
+    gap: 0.25rem !important;
+}
+
+/* Ajustement pour les petits écrans */
+@media (max-width: 768px) {
+    .table > :not(caption) > * > * {
+        padding: 0.75rem;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.7rem;
+    }
+
+    .mobile-hide {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %} 

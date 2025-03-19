@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if maintenance %}Modifier{% else %}Ajouter{% endif %} une maintenance - FabBoard{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <h2 class="card-title mb-4">Maintenance pour {{ machine.name }}</h2>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.maintenance_type_choice.id_for_label }}" class="form-label">
+                            {{ form.maintenance_type_choice.label }}
+                        </label>
+                        {{ form.maintenance_type_choice }}
+                        {% if form.maintenance_type_choice.errors %}
+                        <div class="alert alert-danger mt-1">
+                            {{ form.maintenance_type_choice.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div id="custom_type_field" class="mb-3" style="display: none;">
+                        <label for="{{ form.custom_type_name.id_for_label }}" class="form-label">
+                            {{ form.custom_type_name.label }}
+                        </label>
+                        {{ form.custom_type_name }}
+                        {% if form.custom_type_name.errors %}
+                        <div class="alert alert-danger mt-1">
+                            {{ form.custom_type_name.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label d-block">{{ form.scheduling_type.label }}</label>
+                        <div class="btn-group" role="group">
+                            {% for value, text in form.scheduling_type.field.choices %}
+                            <input type="radio" class="btn-check" name="{{ form.scheduling_type.name }}" 
+                                   id="scheduling_{{ value }}" value="{{ value }}"
+                                   {% if form.scheduling_type.value == value or value == 'today' and not form.scheduling_type.value %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="scheduling_{{ value }}">
+                                {{ text }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div id="date_field" class="mb-3">
+                        <label for="{{ form.scheduled_date.id_for_label }}" class="form-label">
+                            {{ form.scheduled_date.label }}
+                        </label>
+                        {{ form.scheduled_date }}
+                        {% if form.scheduled_date.errors %}
+                        <div class="alert alert-danger mt-1">
+                            {{ form.scheduled_date.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div id="period_field" class="mb-3">
+                        <label for="{{ form.period_days.id_for_label }}" class="form-label">
+                            {{ form.period_days.label }}
+                        </label>
+                        {{ form.period_days }}
+                        {% if form.period_days.help_text %}
+                        <div class="form-text">{{ form.period_days.help_text }}</div>
+                        {% endif %}
+                        {% if form.period_days.errors %}
+                        <div class="alert alert-danger mt-1">
+                            {{ form.period_days.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">
+                            {{ form.notes.label }}
+                        </label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                        <div class="alert alert-danger mt-1">
+                            {{ form.notes.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.significant }}
+                        <label class="form-check-label" for="{{ form.significant.id_for_label }}">
+                            {{ form.significant.label }}
+                        </label>
+                        {% if form.significant.help_text %}
+                        <div class="form-text">{{ form.significant.help_text }}</div>
+                        {% endif %}
+                        {% if form.significant.errors %}
+                        <div class="alert alert-danger mt-1">
+                            {{ form.significant.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </a>
+                        <button type="submit" class="btn btn-success" id="submit_button">
+                            <i class="fas fa-calendar-plus"></i> <span id="button_text">Enregistrer</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dateField = document.getElementById('date_field');
+    const periodField = document.getElementById('period_field');
+    const customTypeField = document.getElementById('custom_type_field');
+    const buttonText = document.getElementById('button_text');
+    const schedulingInputs = document.querySelectorAll('input[name="{{ form.scheduling_type.name }}"]');
+
+    function handleMaintenanceTypeChange(select) {
+        const selectedValue = select.value;
+        customTypeField.style.display = selectedValue === 'other' ? 'block' : 'none';
+    }
+
+    function updateFields() {
+        const selectedValue = document.querySelector('input[name="{{ form.scheduling_type.name }}"]:checked').value;
+        
+        dateField.style.display = selectedValue === 'scheduled' ? 'block' : 'none';
+        periodField.style.display = selectedValue === 'periodic' ? 'block' : 'none';
+        
+        // Mettre à jour le texte du bouton
+        if (selectedValue === 'today') {
+            buttonText.textContent = 'Enregistrer';
+        } else if (selectedValue === 'scheduled') {
+            buttonText.textContent = 'Programmer';
+        } else {
+            buttonText.textContent = 'Programmer périodiquement';
+        }
+    }
+
+    schedulingInputs.forEach(input => {
+        input.addEventListener('change', updateFields);
+    });
+
+    // Initial updates
+    handleMaintenanceTypeChange(document.getElementById('{{ form.maintenance_type_choice.id_for_label }}'));
+    updateFields();
+
+    // Add event listener for maintenance type change
+    document.getElementById('{{ form.maintenance_type_choice.id_for_label }}').addEventListener('change', function() {
+        handleMaintenanceTypeChange(this);
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

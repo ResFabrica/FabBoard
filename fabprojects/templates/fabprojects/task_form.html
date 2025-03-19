@@ -1,0 +1,112 @@
+{% extends 'fabprojects/form_base.html' %}
+
+{% block help_text %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Aide</h5>
+    </div>
+    <div class="card-body">
+        <p>Une tâche représente une unité de travail à accomplir.</p>
+        <p>Vous pouvez :</p>
+        <ul>
+            <li>Assigner la tâche à un ou plusieurs utilisateurs</li>
+            <li>Définir une date limite</li>
+            <li>Ajouter des tags pour catégoriser la tâche</li>
+            <li>Ajouter une description détaillée</li>
+            <li>Créer des sous-tâches pour décomposer le travail</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialiser Select2 pour les utilisateurs assignés
+        $('#id_assigned_users').select2({
+            theme: 'bootstrap-5',
+            width: '100%'
+        });
+
+        // Initialiser Select2 pour les tags
+        $('#id_tags').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            tags: true,
+            placeholder: "Sélectionnez ou créez des tags",
+            allowClear: true,
+            ajax: {
+                url: '{% url "fabprojects:tag_autocomplete" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results
+                    };
+                },
+                cache: true
+            },
+            templateResult: function(data) {
+                if (data.loading) {
+                    return data.text;
+                }
+                
+                var $container = $(
+                    "<div class='select2-result-tag'>" +
+                    "<span class='tag-color-dot' style='background-color: " + (data.color || "#cccccc") + "'></span>" +
+                    "<span class='tag-name'>" + data.text + "</span>" +
+                    "</div>"
+                );
+                
+                return $container;
+            },
+            templateSelection: function(data) {
+                if (!data.id) {
+                    return data.text;
+                }
+                
+                var $container = $(
+                    "<span class='tag-color-dot' style='background-color: " + (data.color || "#cccccc") + "'></span>" +
+                    "<span class='tag-name'>" + data.text + "</span>"
+                );
+                
+                return $container;
+            }
+        });
+
+        // Définir l'URL de retour pour le bouton Annuler
+        var cancelButton = document.querySelector('a.btn-secondary');
+        {% if task %}
+            cancelButton.href = "{% url 'fabprojects:task_detail' task.id %}";
+        {% else %}
+            cancelButton.href = "{% url 'fabprojects:view_detail' section.view.id %}";
+        {% endif %}
+    });
+</script>
+
+<style>
+.select2-result-tag {
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.tag-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.tag-name {
+    display: inline-block;
+}
+</style>
+{% endblock %} 

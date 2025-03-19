@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="display-1 text-danger mb-4">
+                <i class="fas fa-tools fa-spin"></i> 404
+            </h1>
+            <h2 class="mb-4">Oups ! La machine est en panne...</h2>
+            <p class="lead mb-4">
+                Il semble que la page que vous recherchez soit introuvable. 
+                Même notre imprimante 3D n'arrive pas à la fabriquer !
+            </p>
+            <div class="mb-4">
+                <pre class="text-danger">
+    Error: PAGE_NOT_FOUND
+    ███████╗██████╗ ██████╗  ██████╗ ██████╗ 
+    ██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗
+    █████╗  ██████╔╝██████╔╝██║   ██║██████╔╝
+    ██╔══╝  ██╔══██╗██╔══██╗██║   ██║██╔══██╗
+    ███████╗██║  ██║██║  ██║╚██████╔╝██║  ██║
+    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
+                </pre>
+            </div>
+            <p class="mb-4">
+                Peut-être que vous devriez :
+            </p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="javascript:history.back()" class="btn btn-outline-primary">
+                    <i class="fas fa-undo"></i> Retourner en arrière
+                </a>
+                <a href="{% url 'fabmaintenance:machine_list' %}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Retourner à l'accueil
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

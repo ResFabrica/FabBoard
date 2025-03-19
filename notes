@@ -1,0 +1,19 @@
+J'aimerais maintenant faire un nouveau module pour ce projet.
+Je veux faire une version simplifiée de Asana adapaté au FabLab.
+L'idée est d'avoir un onglet gestion de projets. Dedans on pourra selectionner et créer des vues. Dans ces vues nous aurons des sections. Dans les sections nous aurons des tâches.
+Dans les taches nous pourrons avoir des sous taches
+Dans les taches, nous pourrons:
+- assigner des utilisateurs.
+- mettre des deadlines
+- mettre des tags
+- mettre une description
+- valider les taches
+- insérer des champs personnalisés.
+Nous aurons une vue de taches pour chaque utilisateurs
+Nous aurons une vue de taches pour l'ensemble du FabLab
+Les vues sont des listes de tache par section.
+
+Crée un module supplémentaire à FabBoard en django en te connectant à la base de donnée existante.
+
+
+

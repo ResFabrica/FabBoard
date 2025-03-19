@@ -1,0 +1,1898 @@
+{% extends 'fabprojects/base_projects.html' %}
+{% load static %}
+{% load fabprojects_filters %}
+
+{% block extra_css %}
+{{ block.super }}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    .select2-container {
+        width: 100% !important;
+    }
+    .select2-selection__choice {
+        margin: 2px !important;
+    }
+    .editable-users {
+        cursor: pointer;
+        min-height: 24px;
+    }
+    .editable-users:hover {
+        background-color: rgba(0,0,0,0.05);
+        border-radius: 4px;
+    }
+    .editable-tags {
+        cursor: pointer;
+        min-height: 24px;
+    }
+    .editable-tags:hover {
+        background-color: rgba(0,0,0,0.05);
+        border-radius: 4px;
+    }
+    .select2-tags.d-none {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    @media (max-width: 767.98px) {
+        .table th:not(.mobile-show),
+        .table td:not(.mobile-show) {
+            display: none !important;
+        }
+        .col-title {
+            width: auto;
+        }
+        .col-status {
+            width: 40px;
+        }
+        .col-assigned {
+            width: 120px;
+        }
+        /* Cacher la description en mode mobile */
+        .task-item .text-muted {
+            display: none;
+        }
+        /* Ajuster l'espacement en mobile */
+        .table td {
+            padding: 0.5rem;
+        }
+        .header-actions .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .header-actions .btn i {
+            font-size: 0.875rem;
+            margin-right: 0.25rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+        }
+    }
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin: 0;
+        padding: 0;
+        width: 100%;
+    }
+    .sticky-header .table {
+        margin-bottom: 0;
+        width: 100%;
+    }
+    .sticky-header th {
+        background-color: white;
+        padding: 0.75rem;
+        border-bottom: 2px solid #dee2e6;
+        white-space: nowrap;
+    }
+    .task-table {
+        width: 100%;
+    }
+    .col-status {
+        width: 50px;
+    }
+    .col-title {
+        width: 35%;
+    }
+    .col-assigned {
+        width: 15%;
+    }
+    .col-deadline {
+        width: 100px;
+    }
+    .col-tags {
+        width: 15%;
+    }
+    .col-actions {
+        width: 100px;
+    }
+    .col-custom-field {
+        width: 120px;
+    }
+    .table-responsive {
+        overflow-x: auto;
+    }
+    /* Augmenter la largeur du panneau latéral */
+    .offcanvas.offcanvas-end {
+        width: 600px;
+    }
+    @media (max-width: 767.98px) {
+        .offcanvas.offcanvas-end {
+            width: 100%;
+        }
+    }
+    /* Styles pour la recherche */
+    .search-container {
+        position: relative;
+        min-width: 250px;
+    }
+    
+    .search-container .clear-search {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6c757d;
+        display: none;
+    }
+    
+    .search-container .clear-search:hover {
+        color: #343a40;
+    }
+    
+    .search-container input:not(:placeholder-shown) + .clear-search {
+        display: block;
+    }
+    
+    @media (max-width: 767.98px) {
+        .search-container {
+            min-width: 200px;
+        }
+        
+        // ... existing mobile styles ...
+    }
+    
+    .highlight {
+        background-color: rgba(255, 255, 0, 0.3);
+    }
+    
+    /* Styles pour la recherche et les transitions */
+    .card {
+        transition: opacity 0.3s ease-in-out, margin 0.3s ease-in-out;
+    }
+    
+    .task-item {
+        transition: opacity 0.3s ease-in-out;
+    }
+    
+    .card.hidden,
+    .task-item.hidden {
+        opacity: 0;
+        margin: 0;
+        height: 0;
+        overflow: hidden;
+    }
+    
+    .section-tag {
+        cursor: pointer;
+        transition: opacity 0.2s ease-in-out;
+    }
+    
+    .section-tag:hover {
+        opacity: 0.8;
+    }
+    
+    .section-tag.active {
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px currentColor;
+    }
+
+    .clear-filter-btn {
+        display: none;
+        margin-left: 1rem;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        color: #6c757d;
+        background-color: #fff;
+        border: 1px solid #6c757d;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .clear-filter-btn:hover {
+        color: #fff;
+        background-color: #6c757d;
+    }
+
+    .clear-filter-btn.visible {
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block project_content %}
+{% csrf_token %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h1>{{ view.name }}</h1>
+            <p class="text-muted mb-0">
+                <i class="fas fa-building"></i> {{ view.fablab.name }}
+            </p>
+            {% if view.custom_fields.exists %}
+            <div class="mt-2">
+                <h6 class="mb-2">Champs personnalisés :</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for field in view.custom_fields.all %}
+                    <span class="badge bg-info">
+                        {{ field.name }} ({{ field.get_field_type_display }})
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="header-actions d-flex align-items-center gap-2">
+            <!-- Ajout du champ de recherche -->
+            <div class="search-container">
+                <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Rechercher tâches et sections...">
+                <i class="fas fa-times clear-search" title="Effacer la recherche"></i>
+            </div>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{% url 'fabprojects:view_edit' view.id %}">
+                            <i class="fas fa-edit me-2"></i>Modifier la Vue
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'fabprojects:section_create' view.id %}">
+                            <i class="fas fa-plus me-2"></i>Nouvelle Section
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Header fixe -->
+<div class="sticky-header mb-4">
+    <table class="table align-middle task-table">
+        <thead>
+            <tr>
+                <th class="text-center mobile-show col-status">État</th>
+                <th class="mobile-show col-title">Titre</th>
+                <th class="mobile-show col-assigned">Assigné à</th>
+                <th class="col-deadline">Date limite</th>
+                <th class="col-tags">Tags</th>
+                {% for field in view.custom_fields.all %}
+                <th class="col-custom-field">{{ field.name }}</th>
+                {% endfor %}
+                <th class="text-center col-actions">Actions</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div id="sections-container">
+            {% for section in sections %}
+            <div class="card mb-4 section-item" data-section-id="{{ section.id }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-link text-dark p-0 me-2 section-toggle" data-section-id="{{ section.id }}">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div>
+                            <a href="{% url 'fabprojects:section_detail' section.id %}" class="text-decoration-none text-dark">
+                                <h5 class="card-title mb-0">{{ section.name }}</h5>
+                            </a>
+                            {% if section.tags.exists %}
+                            <div class="mt-1 d-flex align-items-center">
+                                {% for tag in section.tags.all %}
+                                <span class="badge section-tag" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                                {% endfor %}
+                                <button class="clear-filter-btn">
+                                    <i class="fas fa-times me-1"></i>Tout afficher
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'fabprojects:section_edit' section.id %}">
+                                    <i class="fas fa-edit me-2"></i>Modifier
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#manageSectionTagsModal-{{ section.id }}" href="#">
+                                    <i class="fas fa-tags me-2"></i>Gérer les tags
+                                </a>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'fabprojects:section_delete' section.id %}">
+                                    <i class="fas fa-trash me-2"></i>Supprimer
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body p-0 section-content" id="section-{{ section.id }}-content">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0 task-table">
+                            <tbody class="task-list" data-section-id="{{ section.id }}">
+                                {% for task in section.tasks.all %}
+                                <tr class="task-item{% if task.is_completed %} table-secondary{% endif %}" 
+                                    data-task-id="{{ task.id }}"
+                                    data-edit-url="{% url 'fabprojects:task_edit' task.id %}">
+                                    <!-- État -->
+                                    <td class="text-center mobile-show col-status">
+                                        <i class="fas fa-check-circle task-checkbox cursor-pointer"
+                                           style="font-size: 1.2rem; cursor: pointer; color: {% if task.is_completed %}#28a745{% else %}#dee2e6{% endif %};"
+                                           data-task-id="{{ task.id }}"
+                                           role="button"
+                                           title="{% if task.is_completed %}Marquer comme non terminé{% else %}Marquer comme terminé{% endif %}">
+                                        </i>
+                                    </td>
+                                    
+                                    <!-- Titre et Description -->
+                                    <td class="mobile-show col-title">
+                                        <div class="editable" 
+                                             data-type="text"
+                                             data-task-id="{{ task.id }}"
+                                             data-field="title">
+                                            <div class="display">
+                                                <span>{{ task.title }}</span>
+                                            </div>
+                                            <input type="text" 
+                                                   class="form-control form-control-sm"
+                                                   value="{{ task.title }}"
+                                                   data-original-value="{{ task.title }}">
+                                        </div>
+                                        {% if task.description %}
+                                        <div class="small text-muted mt-1">{{ task.description|linebreaksbr }}</div>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Assignés -->
+                                    <td class="mobile-show col-assigned">
+                                        <div class="editable-users" data-task-id="{{ task.id }}">
+                                            {% for user in task.assigned_users.all %}
+                                                <span class="badge bg-secondary">
+                                                    {{ user.get_full_name|default:user.username }}
+                                                </span>
+                                            {% empty %}
+                                                <span class="text-muted">-</span>
+                                            {% endfor %}
+                                        </div>
+                                        <select class="form-control select2-users d-none" multiple style="display: none !important;">
+                                            {% for user in task.assigned_users.all %}
+                                                <option value="{{ user.id }}" selected>{{ user.get_full_name|default:user.username }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    
+                                    <!-- Date limite -->
+                                    <td>
+                                        <div class="editable"
+                                             data-type="date"
+                                             data-task-id="{{ task.id }}"
+                                             data-field="deadline">
+                                            <span class="display {% if task.deadline < now %}text-danger{% endif %}">
+                                                {% if task.deadline %}
+                                                    {{ task.deadline|date:"d/m/Y" }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </span>
+                                            <input type="date" 
+                                                   class="form-control form-control-sm"
+                                                   value="{% if task.deadline %}{{ task.deadline|date:'Y-m-d' }}{% endif %}"
+                                                   data-original-value="{% if task.deadline %}{{ task.deadline|date:'Y-m-d' }}{% endif %}">
+                                        </div>
+                                    </td>
+                                    
+                                    <!-- Tags -->
+                                    <td>
+                                        <div class="editable-tags" data-task-id="{{ task.id }}">
+                                            <div class="d-flex flex-wrap gap-1">
+                                            {% for tag in task.tags.all %}
+                                                <span class="badge" style="background-color: {{ tag.color }}">
+                                                    {{ tag.name }}
+                                                </span>
+                                            {% empty %}
+                                                <span class="text-muted">-</span>
+                                            {% endfor %}
+                                            </div>
+                                        </div>
+                                        <select class="form-control select2-tags d-none" multiple style="display: none !important; visibility: hidden;">
+                                            {% for tag in task.tags.all %}
+                                                <option value="{{ tag.id }}" selected data-color="{{ tag.color }}">{{ tag.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    
+                                    <!-- Champs personnalisés -->
+                                    {% for field in view.custom_fields.all %}
+                                    <td>
+                                        {% with value=task|get_custom_field_value:field %}
+                                        <div class="editable" 
+                                             data-type="{{ field.field_type }}"
+                                             data-task-id="{{ task.id }}"
+                                             data-field-id="{{ field.id }}"
+                                             data-field="custom_field">
+                                            {% if field.field_type == 'boolean' %}
+                                                <div class="form-check">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           {% if value and value.value == 'true' %}checked{% endif %}
+                                                           data-original-value="{% if value %}{{ value.value }}{% else %}false{% endif %}">
+                                                </div>
+                                            {% elif field.field_type == 'choice' %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <select class="form-select form-select-sm"
+                                                        data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                                    <option value="">-</option>
+                                                    {% if field.choices %}
+                                                        {% with choices=field.choices|split:"\n" %}
+                                                            {% for choice in choices %}
+                                                                {% with choice_value=choice|trim %}
+                                                                    <option value="{{ choice_value }}" 
+                                                                            {% if value and value.value == choice_value %}selected{% endif %}>
+                                                                        {{ choice_value }}
+                                                                    </option>
+                                                                {% endwith %}
+                                                            {% endfor %}
+                                                        {% endwith %}
+                                                    {% endif %}
+                                                </select>
+                                            {% elif field.field_type == 'date' %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value|date:"d/m/Y" }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <input type="date" 
+                                                       class="form-control form-control-sm"
+                                                       value="{% if value %}{{ value.value }}{% endif %}"
+                                                       data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                            {% elif field.field_type == 'number' %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <input type="number" 
+                                                       class="form-control form-control-sm"
+                                                       value="{% if value %}{{ value.value }}{% endif %}"
+                                                       data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                            {% else %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <input type="text" 
+                                                       class="form-control form-control-sm"
+                                                       value="{% if value %}{{ value.value }}{% endif %}"
+                                                       data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                            {% endif %}
+                                        </div>
+                                        {% endwith %}
+                                    </td>
+                                    {% endfor %}
+                                    
+                                    <!-- Actions -->
+                                    <td class="text-center col-actions">
+                                        <div class="btn-group">
+                                            <a href="{% url 'fabprojects:task_edit' task.id %}?panel=1" 
+                                               class="btn btn-sm btn-outline-primary task-edit"
+                                               title="Modifier">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'fabprojects:task_delete' task.id %}" 
+                                               class="btn btn-sm btn-outline-danger"
+                                               title="Supprimer">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Bouton Nouvelle Tâche -->
+                    <div class="p-3 border-top">
+                        <a href="{% url 'fabprojects:task_create' section.id %}?panel=1" 
+                           class="btn btn-outline-primary btn-sm task-create"
+                           title="Nouvelle tâche">
+                            <i class="fas fa-plus fa-xs"></i><i class="fas fa-clipboard-check position-relative" style="margin-left: 2px;"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour gérer les tags de la section -->
+{% for section in sections %}
+<div class="modal fade" id="manageSectionTagsModal-{{ section.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Gérer les tags - {{ section.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'fabprojects:section_update_tags' section.id %}{% if current_section %}?current_section=1{% endif %}">
+                    {% csrf_token %}
+                    {% if available_tags %}
+                        {% for tag in available_tags %}
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="tags" value="{{ tag.id }}" 
+                                   id="tag-{{ section.id }}-{{ tag.id }}" {% if tag in section.tags.all %}checked{% endif %}>
+                            <label class="form-check-label" for="tag-{{ section.id }}-{{ tag.id }}">
+                                <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucun tag disponible</p>
+                        <div class="mt-3">
+                            <a href="{% url 'fabprojects:tag_create' %}" class="btn btn-primary">Créer un tag</a>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                        </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal pour le formulaire de tâche -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="taskFormPanel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="taskFormPanelLabel">Tâche</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <!-- Le contenu sera chargé dynamiquement -->
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<style>
+/* Styles pour le drag & drop */
+.task-list tr {
+    display: table-row !important;
+    width: 100%;
+}
+.task-list tr td {
+    display: table-cell !important;
+}
+.sortable-ghost {
+    opacity: 0.5;
+    background-color: #f8f9fa;
+}
+.sortable-drag {
+    background-color: #ffffff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.15);
+}
+
+/* Styles pour les tags */
+.select2-result-tag {
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.tag-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.tag-name {
+    display: inline-block;
+}
+
+/* Styles pour l'édition des champs personnalisés */
+.custom-field-editor {
+    min-width: 100px;
+}
+
+.custom-field-editor .form-control-sm,
+.custom-field-editor .form-select-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.custom-field-editor .form-check {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+}
+
+/* Styles pour les champs éditables */
+.editable {
+    position: relative;
+    cursor: pointer;
+}
+
+/* Masquer les éléments d'édition par défaut */
+.editable input,
+.editable select,
+.editable .select2-container {
+    display: none;
+}
+
+/* Afficher les éléments d'édition quand .editing est actif */
+.editable.editing input,
+.editable.editing select,
+.editable.editing .select2-container {
+    display: block !important;
+    width: 100% !important;
+}
+
+/* Styles pour Select2 */
+.select2-container {
+    z-index: 1060;
+    min-width: 200px;
+}
+
+/* Afficher l'icône d'édition au survol */
+.editable:hover::after {
+    content: "✎";
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+}
+
+/* Masquer l'affichage en lecture seule pendant l'édition */
+.editable.editing .display {
+    display: none;
+}
+
+/* Afficher l'affichage en lecture seule par défaut */
+.editable .display {
+    display: block;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const viewId = '{{ view.id }}';
+    const userId = '{{ request.user.id }}';
+
+    // Fonction pour sauvegarder l'état des sections
+    function saveSectionStates() {
+        const states = {};
+        document.querySelectorAll('.section-toggle').forEach(toggle => {
+            const sectionId = toggle.dataset.sectionId;
+            states[sectionId] = toggle.querySelector('i').classList.contains('fa-chevron-right');
+        });
+        localStorage.setItem(`user_${userId}_view_${viewId}_section_states`, JSON.stringify(states));
+    }
+
+    // Fonction pour charger l'état des sections
+    function loadSectionStates() {
+        const states = JSON.parse(localStorage.getItem(`user_${userId}_view_${viewId}_section_states`) || '{}');
+        document.querySelectorAll('.section-toggle').forEach(toggle => {
+            const sectionId = toggle.dataset.sectionId;
+            if (states[sectionId]) {
+                const icon = toggle.querySelector('i');
+                const content = document.querySelector(`#section-${sectionId}-content`);
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+                content.style.display = 'none';
+            }
+        });
+    }
+
+    // Gérer le pliage/dépliage des sections
+    document.querySelectorAll('.section-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const sectionId = this.dataset.sectionId;
+            const icon = this.querySelector('i');
+            const content = document.querySelector(`#section-${sectionId}-content`);
+            
+            if (icon.classList.contains('fa-chevron-down')) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+                content.style.display = 'none';
+            } else {
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+                content.style.display = 'block';
+            }
+            
+            saveSectionStates();
+        });
+    });
+
+    // Charger l'état initial des sections
+    loadSectionStates();
+
+    // Initialiser Sortable pour chaque liste de tâches
+    document.querySelectorAll('.task-list').forEach(function(el) {
+        new Sortable(el, {
+            group: 'tasks',
+            animation: 150,
+            draggable: 'tr',
+            dragClass: 'sortable-drag',
+            ghostClass: 'sortable-ghost',
+            forceFallback: true,
+            fallbackClass: 'sortable-fallback',
+            onStart: function(evt) {
+                document.body.style.cursor = 'grabbing';
+            },
+            onEnd: function(evt) {
+                document.body.style.cursor = 'default';
+                const taskId = evt.item.dataset.taskId;
+                const newSectionId = evt.to.dataset.sectionId;
+                const newIndex = evt.newIndex;
+
+                // Envoyer la mise à jour au serveur
+                fetch(`{% url 'fabprojects:task_move' 0 %}`.replace('0', taskId), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        section_id: newSectionId,
+                        order: newIndex
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Error:', data.error);
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    window.location.reload();
+                });
+            }
+        });
+    });
+
+    // Gérer la complétion des tâches
+    document.querySelectorAll('.task-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('click', function() {
+            const taskId = this.dataset.taskId;
+            fetch(`{% url 'fabprojects:task_toggle_complete' 0 %}`.replace('0', taskId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const row = this.closest('tr');
+                    if (data.is_completed) {
+                        row.classList.add('table-secondary');
+                        this.style.color = '#28a745';  // Vert
+                        this.title = 'Marquer comme non terminé';
+                    } else {
+                        row.classList.remove('table-secondary');
+                        this.style.color = '#dee2e6';  // Gris
+                        this.title = 'Marquer comme terminé';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    });
+
+    // Gérer l'ouverture du panneau de formulaire
+    const taskFormPanel = new bootstrap.Offcanvas(document.getElementById('taskFormPanel'));
+    
+    // Fonction pour initialiser le formulaire
+    function initializeTaskForm() {
+        const form = document.getElementById('taskForm');
+        if (!form) return;
+        
+        const panel = form.closest('.offcanvas');
+        const formUrl = form.getAttribute('data-url');
+        const loadingOverlay = panel.querySelector('.loading-overlay');
+        
+        // Initialiser les boutons de suppression de fichiers
+        panel.querySelectorAll('.delete-file').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const fileId = this.dataset.fileId;
+                const deleteUrl = this.dataset.deleteUrl;
+                console.log('Tentative de suppression du fichier:', fileId);
+                
+                if (confirm('Voulez-vous vraiment supprimer ce fichier ?')) {
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    loadingOverlay.style.display = 'flex';
+                    
+                    fetch(deleteUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        console.log('Réponse reçue:', response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Données reçues:', data);
+                        loadingOverlay.style.display = 'none';
+                        if (data.success) {
+                            this.closest('.list-group-item').remove();
+                            
+                            // Si c'était le dernier fichier, masquer la section
+                            const fileList = document.querySelector('.list-group');
+                            if (!fileList.querySelector('.list-group-item')) {
+                                fileList.closest('.mt-3').style.display = 'none';
+                            }
+                        } else {
+                            console.error('Erreur lors de la suppression:', data.error);
+                            alert('Une erreur est survenue lors de la suppression du fichier : ' + (data.error || 'Erreur inconnue'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur lors de la requête:', error);
+                        loadingOverlay.style.display = 'none';
+                        alert('Une erreur est survenue lors de la suppression du fichier.');
+                    });
+                }
+            });
+        });
+        
+        // Initialiser Select2 pour les utilisateurs assignés
+        $('#id_assigned_users').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: panel,
+            templateResult: function(user) {
+                if (!user.id) return user.text;
+                return user.full_name || user.text;
+            },
+            templateSelection: function(user) {
+                if (!user.id) return user.text;
+                return user.full_name || user.text;
+            }
+        });
+
+        // Initialiser Select2 pour les tags
+        $('#id_tags').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: panel,
+            tags: true,
+            ajax: {
+                url: '{% url "fabprojects:tag_autocomplete" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results.map(function(tag) {
+                            return {
+                                id: tag.id,
+                                text: tag.text,
+                                color: tag.color
+                            };
+                        })
+                    };
+                },
+                cache: true
+            },
+            templateResult: function(tag) {
+                if (!tag.id || !tag.color) return tag.text;
+                return $(`
+                    <div class="d-flex align-items-center">
+                        <span class="me-2" style="width: 12px; height: 12px; border-radius: 50%; background-color: ${tag.color}"></span>
+                        <span>${tag.text}</span>
+                    </div>
+                `);
+            },
+            templateSelection: function(tag) {
+                if (!tag.id || !tag.color) return tag.text;
+                return $(`
+                    <div class="d-flex align-items-center">
+                        <span class="me-1" style="width: 8px; height: 8px; border-radius: 50%; background-color: ${tag.color}"></span>
+                        <span>${tag.text}</span>
+                    </div>
+                `);
+            }
+        });
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            
+            fetch(formUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                const contentType = response.headers.get('content-type');
+                console.log('Content type:', contentType);
+                
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json().then(data => {
+                        console.log('JSON response:', data);
+                        return { isJson: true, data };
+                    });
+                } else {
+                    return response.text().then(html => {
+                        console.log('HTML response length:', html.length);
+                        console.log('HTML response preview:', html.substring(0, 200));
+                        return { isJson: false, html };
+                    });
+                }
+            })
+            .then(result => {
+                if (result.isJson) {
+                    if (result.data.success) {
+                        const bsPanel = bootstrap.Offcanvas.getInstance(document.getElementById('taskFormPanel'));
+                        if (bsPanel) {
+                            bsPanel.hide();
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 300);
+                        } else {
+                            // Nettoyer les erreurs précédentes
+                            form.querySelectorAll('.is-invalid').forEach(function(el) {
+                                el.classList.remove('is-invalid');
+                            });
+                            form.querySelectorAll('.invalid-feedback').forEach(function(el) {
+                                el.remove();
+                            });
+                            
+                            // Afficher les nouvelles erreurs
+                            Object.keys(result.data.errors).forEach(function(field) {
+                                var errorDiv = document.createElement('div');
+                                errorDiv.className = 'invalid-feedback d-block';
+                                errorDiv.textContent = result.data.errors[field].join(' ');
+                                var input = form.querySelector('[name="' + field + '"]');
+                                if (input) {
+                                    input.classList.add('is-invalid');
+                                    input.parentNode.appendChild(errorDiv);
+                                }
+                            });
+                        }
+                    }
+                } else {
+                    // Vérifier si la réponse est une page HTML complète
+                    if (result.html.trim().startsWith('<!DOCTYPE html>')) {
+                        console.log('Detected full page response, closing panel and reloading...');
+                        const bsPanel = bootstrap.Offcanvas.getInstance(document.getElementById('taskFormPanel'));
+                        if (bsPanel) {
+                            bsPanel.hide();
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 300);
+                        } else {
+                            window.location.reload();
+                        }
+                    } else if (result.html.includes('taskForm')) {
+                        console.log('Updating form panel with new form content');
+                        document.querySelector('#taskFormPanel .offcanvas-body').innerHTML = result.html;
+                        initializeTaskForm();
+                    } else {
+                        console.log('Unhandled response type, reloading page');
+                        window.location.reload();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error details:', error);
+                alert('Une erreur est survenue lors de l\'enregistrement de la tâche.');
+            });
+        });
+    }
+    
+    // Gérer le clic sur les lignes de tâches uniquement en mode mobile
+    document.querySelectorAll('.task-item').forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Ne pas rediriger si on clique sur un élément interactif
+            if (e.target.closest('.task-checkbox') || 
+                e.target.closest('.editable') || 
+                e.target.closest('.editable-users') || 
+                e.target.closest('.editable-tags') ||
+                e.target.closest('.btn-group')) {
+                return;
+            }
+            
+            // Rediriger uniquement en mode mobile
+            if (window.innerWidth <= 767.98) {
+                window.location.href = this.dataset.editUrl;
+            }
+        });
+    });
+
+    // Pour la création de tâche
+    document.querySelectorAll('.task-create').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.href;
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    document.querySelector('#taskFormPanel .offcanvas-body').innerHTML = html;
+                    taskFormPanel.show();
+                    initializeTaskForm();
+                });
+        });
+    });
+
+    // Pour l'édition de tâche
+    document.querySelectorAll('.task-edit').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.href;
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    document.querySelector('#taskFormPanel .offcanvas-body').innerHTML = html;
+                    taskFormPanel.show();
+                    initializeTaskForm();
+                });
+        });
+    });
+
+    // Initialisation des éléments éditables
+    document.querySelectorAll('.editable').forEach(editable => {
+        const type = editable.dataset.type;
+        const field = editable.dataset.field;
+        const taskId = editable.dataset.taskId;
+        const display = editable.querySelector('.display');
+        const input = editable.querySelector('input, select');
+        let isEditing = false;
+
+        // Fonction pour démarrer l'édition
+        function startEditing() {
+            if (isEditing) return;
+            isEditing = true;
+            editable.classList.add('editing');
+
+            if (input.tagName === 'SELECT' && input.multiple) {
+                $(input).select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: editable,
+                    language: {
+                        noResults: () => "Aucun utilisateur trouvé"
+                    }
+                });
+                $(input).select2('open');
+            } else {
+                input.focus();
+            }
+        }
+
+        // Fonction pour annuler l'édition
+        function cancelEdit() {
+            if (!isEditing) return;
+            isEditing = false;
+            
+            if (input.tagName === 'SELECT' && input.multiple) {
+                try {
+                    $(input).select2('destroy');
+                } catch (error) {
+                    console.warn('Erreur Select2:', error);
+                }
+            }
+            
+            editable.classList.remove('editing');
+            const originalValue = input.dataset.originalValue || '';
+            
+            if (input.tagName === 'SELECT' && input.multiple) {
+                const originalIds = originalValue ? originalValue.split(',').filter(Boolean) : [];
+                $(input).val(originalIds);
+                const selectedOptions = Array.from(input.selectedOptions);
+                display.innerHTML = selectedOptions.length ? 
+                    selectedOptions.map(option => 
+                        `<span class="badge bg-secondary">${option.text}</span>`
+                    ).join('') : 
+                    '<span class="text-muted">-</span>';
+            } else {
+                input.value = originalValue;
+            }
+        }
+
+        // Fonction pour sauvegarder les modifications
+        function saveChanges(newValue) {
+            // Préparer les données pour l'envoi
+            const data = {
+                task_id: taskId,
+                field: field,
+                value: field === 'assigned_users' ? 
+                    (Array.isArray(newValue) ? newValue : []) : newValue
+            };
+
+            if (field === 'custom_field') {
+                data.field_id = editable.dataset.fieldId;
+            }
+
+            const url = field === 'custom_field' ? 
+                '{% url "fabprojects:update_custom_field" %}' : 
+                '{% url "fabprojects:update_task_field" %}';
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (Array.isArray(data.formatted_value)) {
+                        // Pour les utilisateurs, créer des badges
+                        display.innerHTML = data.formatted_value.length ? 
+                            data.formatted_value.map(user => 
+                                `<span class="badge bg-secondary">${user}</span>`
+                            ).join('') : 
+                            '<span class="text-muted">-</span>';
+                    } else {
+                        display.textContent = data.formatted_value || '-';
+                    }
+                    
+                    // Mettre à jour la valeur originale
+                    input.dataset.originalValue = Array.isArray(newValue) ? 
+                        newValue.join(',') : newValue;
+
+                    showToast('success', 'Modification enregistrée avec succès');
+                } else {
+                    showToast('error', data.error || 'Une erreur est survenue');
+                    cancelEdit();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('error', 'Erreur de communication avec le serveur');
+                cancelEdit();
+            })
+            .finally(() => {
+                isEditing = false;
+                editable.classList.remove('editing');
+                if (input.tagName === 'SELECT' && input.multiple) {
+                    try {
+                        $(input).select2('destroy');
+                    } catch (error) {
+                        console.warn('Erreur Select2:', error);
+                    }
+                }
+            });
+        }
+
+        // Gestionnaire de clic pour démarrer l'édition
+        editable.addEventListener('click', function(e) {
+            if (e.target.closest('.select2') || isEditing) return;
+            startEditing();
+        });
+
+        // Gestionnaire de touches pour l'input
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !input.multiple) {
+                e.preventDefault();
+                this.blur();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+            }
+        });
+
+        // Gestionnaire de perte de focus
+        input.addEventListener('blur', function() {
+            if (!isEditing) return;
+            
+            let newValue;
+            if (this.tagName === 'SELECT' && this.multiple) {
+                newValue = Array.from(this.selectedOptions).map(opt => opt.value);
+                // Toujours envoyer un tableau, même vide, pour les utilisateurs assignés
+                if (field === 'assigned_users') {
+                    saveChanges(newValue);
+                    return;
+                }
+            } else {
+                newValue = this.value;
+            }
+
+            const originalValue = this.dataset.originalValue;
+            const originalArray = originalValue ? originalValue.split(',').filter(Boolean) : [];
+            
+            // Comparer les valeurs
+            const hasChanged = this.multiple ? 
+                JSON.stringify(newValue.sort()) !== JSON.stringify(originalArray.sort()) :
+                newValue !== originalValue;
+
+            if (!hasChanged) {
+                cancelEdit();
+                return;
+            }
+
+            saveChanges(newValue);
+        });
+
+        // Pour Select2, gérer la fermeture
+        if (input.tagName === 'SELECT' && input.multiple) {
+            $(input).on('select2:close', function() {
+                setTimeout(() => {
+                    if (isEditing) {
+                        this.blur();
+                    }
+                }, 100);
+            });
+        }
+    });
+
+    // Fonction utilitaire pour afficher les toasts
+    function showToast(type, message) {
+        const toast = document.getElementById(type === 'success' ? 'successToast' : 'errorToast');
+        toast.querySelector('.toast-body').textContent = message;
+        new bootstrap.Toast(toast).show();
+    }
+
+    // Fonction de recherche
+    const searchInput = document.getElementById('searchInput');
+    
+    function normalizeText(text) {
+        return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+    
+    function highlightText(element, searchText) {
+        const text = element.textContent;
+        if (!searchText) {
+            element.innerHTML = text;
+            return;
+        }
+        
+        const normalizedText = normalizeText(text);
+        const normalizedSearch = normalizeText(searchText);
+        const index = normalizedText.indexOf(normalizedSearch);
+        
+        if (index >= 0) {
+            const before = text.slice(0, index);
+            const match = text.slice(index, index + searchText.length);
+            const after = text.slice(index + searchText.length);
+            element.innerHTML = `${before}<span class="highlight">${match}</span>${after}`;
+        }
+    }
+    
+    function searchInView() {
+        const searchText = searchInput.value.trim();
+        const sections = document.querySelectorAll('.card');
+        
+        sections.forEach(section => {
+            const sectionTitle = section.querySelector('.card-title');
+            const tasks = section.querySelectorAll('.task-item');
+            let sectionVisible = false;
+            
+            // Recherche dans le titre de la section
+            if (normalizeText(sectionTitle.textContent).includes(normalizeText(searchText))) {
+                sectionVisible = true;
+                highlightText(sectionTitle, searchText);
+            } else {
+                sectionTitle.innerHTML = sectionTitle.textContent;
+            }
+            
+            // Recherche dans les tâches
+            tasks.forEach(task => {
+                const taskTitle = task.querySelector('.editable[data-field="title"] .display span');
+                const taskDesc = task.querySelector('.text-muted');
+                let taskVisible = false;
+                
+                if (taskTitle && normalizeText(taskTitle.textContent).includes(normalizeText(searchText))) {
+                    taskVisible = true;
+                    highlightText(taskTitle, searchText);
+                } else if (taskTitle) {
+                    taskTitle.innerHTML = taskTitle.textContent;
+                }
+                
+                if (taskDesc && normalizeText(taskDesc.textContent).includes(normalizeText(searchText))) {
+                    taskVisible = true;
+                    highlightText(taskDesc, searchText);
+                } else if (taskDesc) {
+                    taskDesc.innerHTML = taskDesc.textContent;
+                }
+                
+                // Utiliser les classes pour les transitions
+                if (searchText === '') {
+                    task.classList.remove('hidden');
+                    sectionVisible = true;
+                } else {
+                    if (taskVisible) {
+                        task.classList.remove('hidden');
+                        sectionVisible = true;
+                    } else {
+                        task.classList.add('hidden');
+                    }
+                }
+            });
+            
+            // Utiliser les classes pour les transitions des sections
+            if (sectionVisible || searchText === '') {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        });
+    }
+    
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        // Réduire le délai à 50ms pour une réponse plus rapide
+        searchTimeout = setTimeout(searchInView, 50);
+        
+        // Exécuter immédiatement pour les premiers caractères
+        if (this.value.length <= 2) {
+            searchInView();
+        }
+    });
+
+    // Fonction pour réinitialiser la recherche
+    function clearSearch() {
+        searchInput.value = '';
+        searchInView();
+        document.querySelector('.clear-search').style.display = 'none';
+    }
+    
+    // Gestionnaire pour la touche Échap
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            clearSearch();
+        }
+    });
+    
+    // Gestionnaire pour le bouton de fermeture
+    document.querySelector('.clear-search').addEventListener('click', clearSearch);
+    
+    // Afficher/masquer le bouton de fermeture
+    searchInput.addEventListener('input', function() {
+        document.querySelector('.clear-search').style.display = 
+            this.value ? 'block' : 'none';
+    });
+
+    // Gestion du filtrage par tag de section
+    let activeTag = null;
+    const clearFilterBtn = document.querySelector('.clear-filter-btn');
+    
+    function clearTagFilter() {
+        activeTag = null;
+        document.querySelectorAll('.section-tag').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.card').forEach(section => {
+            section.classList.remove('hidden');
+            section.querySelectorAll('.task-item').forEach(task => {
+                task.classList.remove('hidden');
+            });
+        });
+        clearFilterBtn.classList.remove('visible');
+    }
+    
+    clearFilterBtn.addEventListener('click', clearTagFilter);
+    
+    document.querySelectorAll('.section-tag').forEach(tag => {
+        tag.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tagName = this.textContent.trim();
+            
+            // Si on clique sur le tag actif, on désactive le filtre
+            if (activeTag === tagName) {
+                clearTagFilter();
+                return;
+            }
+            
+            activeTag = tagName;
+            clearFilterBtn.classList.add('visible');
+            
+            // Mettre à jour l'apparence des tags
+            document.querySelectorAll('.section-tag').forEach(t => {
+                if (t.textContent.trim() === tagName) {
+                    t.classList.add('active');
+                } else {
+                    t.classList.remove('active');
+                }
+            });
+            
+            // Filtrer les sections et les tâches
+            document.querySelectorAll('.card').forEach(section => {
+                const sectionTags = Array.from(section.querySelectorAll('.section-tag'))
+                    .map(t => t.textContent.trim());
+                
+                if (sectionTags.includes(tagName)) {
+                    section.classList.remove('hidden');
+                    // Afficher toutes les tâches de cette section
+                    section.querySelectorAll('.task-item').forEach(task => {
+                        task.classList.remove('hidden');
+                    });
+                } else {
+                    // Pour les sections sans le tag, vérifier les tâches
+                    const hasMatchingTasks = Array.from(section.querySelectorAll('.task-item')).some(task => {
+                        const taskTags = Array.from(task.querySelectorAll('.badge'))
+                            .map(t => t.textContent.trim());
+                        return taskTags.includes(tagName);
+                    });
+                    
+                    if (hasMatchingTasks) {
+                        section.classList.remove('hidden');
+                        // Afficher uniquement les tâches avec le tag
+                        section.querySelectorAll('.task-item').forEach(task => {
+                            const taskTags = Array.from(task.querySelectorAll('.badge'))
+                                .map(t => t.textContent.trim());
+                            if (taskTags.includes(tagName)) {
+                                task.classList.remove('hidden');
+                            } else {
+                                task.classList.add('hidden');
+                            }
+                        });
+                    } else {
+                        section.classList.add('hidden');
+                    }
+                }
+            });
+        });
+    });
+
+    // Initialiser Sortable pour les sections
+    new Sortable(document.getElementById('sections-container'), {
+        animation: 150,
+        handle: '.card-header',
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+        onEnd: function(evt) {
+            const sectionId = evt.item.dataset.sectionId;
+            const newIndex = evt.newIndex;
+
+            // Envoyer la mise à jour au serveur
+            fetch(`{% url 'fabprojects:section_move' 0 %}`.replace('0', sectionId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    order: newIndex
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Error:', data.error);
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                window.location.reload();
+            });
+        }
+    });
+});
+</script>
+
+<!-- Toasts pour les notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="successToast" class="toast" role="alert">
+        <div class="toast-header bg-success text-white">
+            <i class="fas fa-check me-2"></i>
+            <strong class="me-auto">Succès</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="successToastMessage"></div>
+    </div>
+    
+    <div id="errorToast" class="toast" role="alert">
+        <div class="toast-header bg-danger text-white">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong class="me-auto">Erreur</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="errorToastMessage"></div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Ajout de logs pour déboguer le select2
+    console.log('Document ready - Initialisation du script');
+    
+    // Vérifier l'état initial des select2-tags
+    $('.select2-tags').each(function() {
+        console.log('État initial select2-tags:', {
+            element: this,
+            isHidden: $(this).hasClass('d-none'),
+            classes: $(this).attr('class'),
+            display: $(this).css('display'),
+            visibility: $(this).css('visibility'),
+            isSelect2: $(this).hasClass('select2-hidden-accessible')
+        });
+    });
+
+    // Forcer le masquage des select2-tags au chargement
+    $('.select2-tags').addClass('d-none').css({
+        'display': 'none',
+        'visibility': 'hidden'
+    });
+    
+    // Vérifier après le masquage forcé
+    console.log('Après masquage forcé - État des select2-tags:', 
+        $('.select2-tags').map(function() {
+            return {
+                isHidden: $(this).hasClass('d-none'),
+                display: $(this).css('display'),
+                visibility: $(this).css('visibility')
+            };
+        }).get()
+    );
+
+    // Initialisation des select2 du panneau latéral
+    function initializeSidebarForm() {
+        const form = document.getElementById('taskForm');
+        if (!form) return;
+        
+        const panel = form.closest('.offcanvas');
+        
+        // Select2 pour les utilisateurs dans le panneau
+        $('#id_assigned_users').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: panel,
+            ajax: {
+                url: '{% url "fabusers:search_users" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term,
+                        fablab_id: '{{ view.fablab.id }}'
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.users.map(function(user) {
+                            return {
+                                id: user.id,
+                                text: user.full_name || user.username
+                            };
+                        })
+                    };
+                }
+            }
+        });
+
+        // Select2 pour les tags dans le panneau
+        $('#id_tags').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: panel,
+            ajax: {
+                url: '{% url "fabprojects:tag_autocomplete" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results
+                    };
+                }
+            },
+            templateResult: formatTagResult,
+            templateSelection: formatTagSelection
+        });
+    }
+
+    // Initialisation des select2 inline pour l'édition dans le tableau
+    function initInlineUserSelect2(element) {
+        const taskId = $(element).closest('td').find('.editable-users').data('task-id');
+        
+        const select2 = $(element).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: element.closest('td'),
+            ajax: {
+                url: '{% url "fabusers:search_users" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term,
+                        fablab_id: '{{ view.fablab.id }}'
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.users.map(function(user) {
+                            return {
+                                id: user.id,
+                                text: user.full_name || user.username
+                            };
+                        })
+                    };
+                }
+            }
+        });
+
+        select2.on('change', function() {
+            const selectedUsers = $(this).val();
+            const editableUsers = $(this).closest('td').find('.editable-users');
+            
+            fetch(`{% url 'fabprojects:update_task_users' 0 %}`.replace('0', taskId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    user_ids: selectedUsers
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const userBadges = selectedUsers.length ? 
+                        $(this).find('option:selected').map(function() {
+                            return `<span class="badge bg-secondary">${$(this).text()}</span>`;
+                        }).get().join('') : 
+                        '<span class="text-muted">-</span>';
+                    
+                    editableUsers.html(userBadges);
+                    
+                    if ($(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2('destroy');
+                    }
+                    $(this).addClass('d-none');
+                    editableUsers.removeClass('d-none');
+                }
+            });
+        });
+
+        return select2;
+    }
+
+    function initInlineTagSelect2(element) {
+        console.log('Initialisation du select2 pour les tags');
+        
+        // Détruire le select2 s'il existe déjà
+        if ($(element).hasClass('select2-hidden-accessible')) {
+            console.log('Destruction du select2 existant');
+            $(this).select2('destroy');
+        }
+        
+        const taskId = $(element).closest('td').find('.editable-tags').data('task-id');
+        
+        const select2 = $(element).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: element.closest('td'),
+            ajax: {
+                url: '{% url "fabprojects:tag_autocomplete" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results.map(function(tag) {
+                            return {
+                                id: tag.id,
+                                text: tag.text,
+                                color: tag.color
+                            };
+                        })
+                    };
+                }
+            },
+            templateResult: formatTagResult,
+            templateSelection: formatTagSelection
+        });
+
+        // Log après l'initialisation
+        console.log('Select2 initialisé:', {
+            element: element,
+            isHidden: $(element).hasClass('d-none'),
+            select2Container: $(element).next('.select2-container'),
+            select2ContainerDisplay: $(element).next('.select2-container').css('display')
+        });
+
+        select2.on('change', function() {
+            const selectedTags = $(this).val();
+            const editableTags = $(this).closest('td').find('.editable-tags');
+            
+            fetch(`{% url 'fabprojects:update_task_field' %}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    task_id: taskId,
+                    field: 'tags',
+                    value: selectedTags
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const tagBadges = data.formatted_value.length ? 
+                        data.formatted_value.map(tag => 
+                            `<span class="badge" style="background-color: ${tag.color}">${tag.name}</span>`
+                        ).join('') : '';
+                    
+                    editableTags.find('.d-flex').html(tagBadges || '<span class="text-muted">-</span>');
+                    
+                    // Nettoyer le select2 après utilisation
+                    if ($(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2('destroy');
+                    }
+                    $(this).addClass('d-none');
+                    // Masquer aussi le container du select2
+                    $(this).next('.select2-container').hide();
+                    editableTags.removeClass('d-none');
+                }
+            });
+        });
+
+        return select2;
+    }
+
+    // Initialiser le formulaire du panneau latéral
+    initializeSidebarForm();
+
+    // Gestion des clics pour l'édition inline
+    $(document).on('click', '.editable-users', function() {
+        const container = $(this).parent();
+        const select = container.find('.select2-users');
+        
+        // Détruire tous les autres select2 ouverts
+        $('.select2-users, .select2-tags').not(select).each(function() {
+            if ($(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2('destroy');
+            }
+            $(this).addClass('d-none');
+        });
+        $('.editable-users, .editable-tags').not(this).removeClass('d-none');
+        
+        $(this).addClass('d-none');
+        select.removeClass('d-none');
+        
+        if (!select.hasClass('select2-hidden-accessible')) {
+            initInlineUserSelect2(select);
+        }
+        
+        select.select2('open');
+    });
+
+    $(document).on('click', '.editable-tags', function() {
+        console.log('Clic sur editable-tags');
+        const container = $(this).parent();
+        const select = container.find('.select2-tags');
+        
+        // Détruire tous les autres select2 ouverts
+        $('.select2-users, .select2-tags').not(select).each(function() {
+            if ($(this).hasClass('select2-hidden-accessible')) {
+                console.log('Destruction des autres select2');
+                $(this).select2('destroy');
+            }
+            $(this).addClass('d-none');
+            // Masquer aussi les containers des autres select2
+            $(this).next('.select2-container').hide();
+        });
+        
+        $('.editable-users, .editable-tags').not(this).removeClass('d-none');
+        
+        $(this).addClass('d-none');
+        select.removeClass('d-none');
+        
+        // Initialiser le select2 seulement au moment du clic
+        const select2Instance = initInlineTagSelect2(select);
+        select2Instance.select2('open');
+    });
+
+    // S'assurer que les select2 sont bien masqués au chargement
+    $(document).ready(function() {
+        $('.select2-tags').addClass('d-none');
+        $('.select2-container').hide();
+    });
+
+    // Gestion du clic en dehors
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.select2-container').length && 
+            !$(e.target).closest('.editable-users').length &&
+            !$(e.target).closest('.editable-tags').length) {
+            $('.select2-users, .select2-tags').each(function() {
+                // Ne pas toucher aux select2 du panneau latéral
+                if (!$(this).closest('.offcanvas').length) {
+                    if ($(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2('destroy');
+                    }
+                    $(this).addClass('d-none');
+                }
+            });
+            $('.editable-users, .editable-tags').removeClass('d-none');
+        }
+    });
+
+    // Format des résultats de recherche de tags
+    function formatTagResult(tag) {
+        if (!tag.id) return tag.text;
+        return $(`
+            <div class="d-flex align-items-center">
+                <span class="me-2" style="width: 12px; height: 12px; border-radius: 50%; background-color: ${tag.color}"></span>
+                <span>${tag.text}</span>
+            </div>
+        `);
+    }
+
+    // Format des tags sélectionnés
+    function formatTagSelection(tag) {
+        if (!tag.id) return tag.text;
+        return $(`
+            <div class="d-flex align-items-center">
+                <span class="me-1" style="width: 8px; height: 8px; border-radius: 50%; background-color: ${tag.color}"></span>
+                <span>${tag.text}</span>
+            </div>
+        `);
+    }
+});
+</script>
+{% endblock %} 

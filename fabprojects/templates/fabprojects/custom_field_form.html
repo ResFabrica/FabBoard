@@ -1,0 +1,92 @@
+{% extends 'fabprojects/base_projects.html' %}
+{% load crispy_forms_tags %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>{{ title }}</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                            <a href="{% url 'fabprojects:custom_field_list' %}" class="btn btn-secondary">Annuler</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Aide</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Types de champs disponibles :</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-3">
+                            <strong>Text</strong><br>
+                            <small class="text-muted">Pour saisir du texte libre (ex: commentaires, notes)</small>
+                        </li>
+                        <li class="mb-3">
+                            <strong>Number</strong><br>
+                            <small class="text-muted">Pour saisir des nombres (ex: quantité, montant)</small>
+                        </li>
+                        <li class="mb-3">
+                            <strong>Date</strong><br>
+                            <small class="text-muted">Pour sélectionner une date</small>
+                        </li>
+                        <li class="mb-3">
+                            <strong>Boolean</strong><br>
+                            <small class="text-muted">Pour une case à cocher oui/non</small>
+                        </li>
+                        <li class="mb-3">
+                            <strong>Choice</strong><br>
+                            <small class="text-muted">Pour sélectionner parmi une liste d'options prédéfinies</small>
+                        </li>
+                    </ul>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Pour les champs de type "Choice", saisissez les options une par ligne dans le champ "Options".
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fieldTypeSelect = document.getElementById('id_field_type');
+        const choicesField = document.getElementById('div_id_choices');
+        
+        function toggleChoicesField() {
+            if (fieldTypeSelect.value === 'choice') {
+                choicesField.style.display = 'block';
+            } else {
+                choicesField.style.display = 'none';
+            }
+        }
+        
+        // Initialiser l'état
+        toggleChoicesField();
+        
+        // Gérer le changement de type
+        fieldTypeSelect.addEventListener('change', toggleChoicesField);
+    });
+</script>
+{% endblock %} 

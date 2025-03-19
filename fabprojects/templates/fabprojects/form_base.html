@@ -1,0 +1,35 @@
+{% extends 'fabprojects/base_projects.html' %}
+{% load crispy_forms_tags %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>{{ title }}</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" {% if form.is_multipart %}enctype="multipart/form-data"{% endif %}>
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">{{ submit_text|default:"Enregistrer" }}</button>
+                            <a href="{{ cancel_url }}" class="btn btn-secondary">Annuler</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        {% block form_sidebar %}
+        <div class="col-md-4">
+            {% block help_text %}{% endblock %}
+        </div>
+        {% endblock %}
+    </div>
+</div>
+{% endblock %} 

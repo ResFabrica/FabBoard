@@ -1,0 +1,250 @@
+{% extends 'fabprojects/base_projects.html' %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'fabprojects:view_detail' task.section.view.id %}">{{ task.section.view.name }}</a></li>
+                    <li class="breadcrumb-item">{{ task.section.name }}</li>
+                    <li class="breadcrumb-item active">{{ task.title }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{{ task.title }}</h5>
+                    <div>
+                        <a href="{% url 'fabprojects:task_edit' task.id %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Modifier
+                        </a>
+                        <a href="{% url 'fabprojects:task_delete' task.id %}" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h6>Description</h6>
+                        <p class="mb-0">{{ task.description|linebreaks|default:"Aucune description" }}</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6>Assigné à</h6>
+                        {% if task.assigned_users.exists %}
+                            <ul class="list-unstyled mb-0">
+                                {% for user in task.assigned_users.all %}
+                                    <li>{{ user.get_full_name|default:user.username }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="mb-0">Non assigné</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <h6>Date limite</h6>
+                        <p class="mb-0">{{ task.deadline|date:"d/m/Y"|default:"Aucune date limite" }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h5>Tags</h5>
+                        {% for tag in task.tags.all %}
+                            <a href="{% url 'fabprojects:tag_tasks' tag.id %}" class="text-decoration-none">
+                                <span class="badge" style="background-color: {{ tag.color }}">
+                                    {{ tag.name }}
+                                </span>
+                            </a>
+                        {% endfor %}
+                    </div>
+
+                    {% if custom_fields %}
+                        <div class="mb-4">
+                            <h6>Champs personnalisés</h6>
+                            <ul class="list-unstyled mb-0">
+                                {% for field_value in custom_fields %}
+                                    <li>
+                                        <strong>{{ field_value.field.name }}:</strong>
+                                        {{ field_value.value }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if task.description %}
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Description</h5>
+                            </div>
+                            <div class="card-body">
+                                {{ task.description|linebreaks }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if task.files.exists %}
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Fichiers attachés</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="list-group">
+                                    {% for file in task.files.all %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <a href="{{ file.file.url }}" target="_blank" class="text-decoration-none">
+                                            <i class="fas fa-file me-2"></i>
+                                            {{ file.filename }}
+                                            <small class="text-muted ms-2">({{ file.file_size|filesizeformat }})</small>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger delete-file" data-file-id="{{ file.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Sous-tâches</h5>
+                    <a href="{% url 'fabprojects:subtask_create' task.id %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Ajouter
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if subtasks %}
+                        <ul class="list-group">
+                            {% for subtask in subtasks %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input subtask-checkbox"
+                                               data-subtask-id="{{ subtask.id }}"
+                                               {% if subtask.is_completed %}checked{% endif %}>
+                                        <label class="form-check-label {% if subtask.is_completed %}text-muted text-decoration-line-through{% endif %}">
+                                            {{ subtask.title }}
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'fabprojects:subtask_edit' subtask.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'fabprojects:subtask_delete' subtask.id %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="mb-0">Aucune sous-tâche</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">État</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" id="taskStatus"
+                               {% if task.is_completed %}checked{% endif %}>
+                        <label class="form-check-label" for="taskStatus">
+                            {% if task.is_completed %}
+                                Tâche terminée
+                            {% else %}
+                                Tâche en cours
+                            {% endif %}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gestion de l'état de la tâche
+        const taskStatus = document.getElementById('taskStatus');
+        if (taskStatus) {
+            taskStatus.addEventListener('change', function() {
+                fetch("{% url 'fabprojects:task_toggle_complete' task.id %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const label = taskStatus.nextElementSibling;
+                        label.textContent = data.is_completed ? 'Tâche terminée' : 'Tâche en cours';
+                    }
+                });
+            });
+        }
+
+        // Gestion des sous-tâches
+        document.querySelectorAll('.subtask-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const subtaskId = this.dataset.subtaskId;
+                fetch(`{% url 'fabprojects:subtask_toggle_complete' 0 %}`.replace('0', subtaskId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const label = this.nextElementSibling;
+                        if (data.is_completed) {
+                            label.classList.add('text-muted', 'text-decoration-line-through');
+                        } else {
+                            label.classList.remove('text-muted', 'text-decoration-line-through');
+                        }
+                    }
+                });
+            });
+        });
+
+        // Gestion de la suppression des fichiers
+        document.querySelectorAll('.delete-file').forEach(button => {
+            button.addEventListener('click', function() {
+                const fileId = this.dataset.fileId;
+                if (confirm('Voulez-vous vraiment supprimer ce fichier ?')) {
+                    fetch(`{% url 'fabprojects:task_file_delete' 0 %}`.replace('0', fileId), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.closest('.list-group-item').remove();
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

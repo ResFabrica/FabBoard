@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4>Supprimer la vue</h4>
+        </div>
+        <div class="card-body">
+            <p>Êtes-vous sûr de vouloir supprimer la vue "{{ view.name }}" ?</p>
+            <p class="text-danger">Cette action est irréversible et supprimera également toutes les sections et tâches associées.</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Confirmer la suppression</button>
+                <a href="{% url 'fabprojects:view_detail' view.id %}" class="btn btn-secondary">Annuler</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

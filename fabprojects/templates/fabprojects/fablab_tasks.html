@@ -1,0 +1,311 @@
+{% extends 'fabprojects/base_projects.html' %}
+{% load static %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    @media (max-width: 767.98px) {
+        .table th:not(.mobile-show),
+        .table td:not(.mobile-show) {
+            display: none;
+        }
+        tr {
+            cursor: pointer;
+        }
+        tr:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1>Tâches des FabLabs</h1>
+                <p class="text-muted mb-0">Vue d'ensemble des tâches par FabLab</p>
+            </div>
+        </div>
+    </div>
+
+    {% if fablab_tasks %}
+        {% for fablab_data in fablab_tasks %}
+            <div class="row mb-4">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-building me-2"></i>
+                                {{ fablab_data.fablab.name }}
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if fablab_data.tasks %}
+                                <div class="table-responsive">
+                                    <table class="table align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center mobile-show" style="width: 50px">État</th>
+                                                <th class="mobile-show" style="min-width: 200px">Tâche</th>
+                                                <th class="mobile-show" style="width: 200px">Assigné à</th>
+                                                <th style="width: 150px">Vue</th>
+                                                <th style="width: 150px">Section</th>
+                                                <th style="width: 120px">Date limite</th>
+                                                <th style="width: 200px">Tags</th>
+                                                <th class="text-center" style="width: 100px">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for task in fablab_data.tasks %}
+                                                <tr class="{% if task.is_completed %}table-secondary{% endif %}"
+                                                    onclick="window.location.href='{% url 'fabprojects:task_edit' task.id %}'">
+                                                    <td class="text-center mobile-show">
+                                                        <i class="fas fa-check-circle task-checkbox cursor-pointer"
+                                                           style="font-size: 1.2rem; cursor: pointer; color: {% if task.is_completed %}#28a745{% else %}#dee2e6{% endif %};"
+                                                           data-task-id="{{ task.id }}"
+                                                           role="button"
+                                                           title="{% if task.is_completed %}Marquer comme non terminé{% else %}Marquer comme terminé{% endif %}">
+                                                        </i>
+                                                    </td>
+                                                    <td class="mobile-show">
+                                                        <div>{{ task.title }}</div>
+                                                        {% if task.description %}
+                                                        <div class="text-muted small">
+                                                            {{ task.description|truncatewords:10 }}
+                                                        </div>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="mobile-show">
+                                                        <div class="d-flex flex-wrap gap-1">
+                                                        {% for user in task.assigned_users.all %}
+                                                            <span class="badge bg-secondary">
+                                                                {{ user.get_full_name|default:user.username }}
+                                                            </span>
+                                                        {% empty %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endfor %}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <a href="{% url 'fabprojects:view_detail' task.section.view.id %}" class="text-decoration-none">
+                                                            {{ task.section.view.name }}
+                                                        </a>
+                                                    </td>
+                                                    <td>{{ task.section.name }}</td>
+                                                    <td>
+                                                        {% if task.deadline %}
+                                                            <span class="{% if task.deadline < now %}text-danger{% else %}text-info{% endif %}">
+                                                                {{ task.deadline|date:"d/m/Y" }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <div class="d-flex flex-wrap gap-1">
+                                                        {% for tag in task.tags.all %}
+                                                            <a href="{% url 'fabprojects:tag_tasks' tag.id %}" class="text-decoration-none">
+                                                                <span class="badge" style="background-color: {{ tag.color }}">
+                                                                    {{ tag.name }}
+                                                                </span>
+                                                            </a>
+                                                        {% endfor %}
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <div class="btn-group">
+                                                            <a href="{% url 'fabprojects:task_edit' task.id %}?panel=1" 
+                                                               class="btn btn-sm btn-outline-primary task-edit"
+                                                               title="Modifier">
+                                                                <i class="fas fa-edit"></i>
+                                                            </a>
+                                                            <a href="{% url 'fabprojects:task_delete' task.id %}" 
+                                                               class="btn btn-sm btn-outline-danger"
+                                                               title="Supprimer">
+                                                                <i class="fas fa-trash"></i>
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info m-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Aucune tâche pour ce FabLab.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Vous n'êtes membre d'aucun FabLab ou il n'y a aucune tâche.
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal pour le formulaire de tâche -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="taskFormPanel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="taskFormPanelLabel">Tâche</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <!-- Le contenu sera chargé dynamiquement -->
+    </div>
+</div>
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // Gérer la complétion des tâches
+        document.querySelectorAll('.task-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', function() {
+                const taskId = this.dataset.taskId;
+                fetch(`{% url 'fabprojects:task_toggle_complete' 0 %}`.replace('0', taskId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const row = this.closest('tr');
+                        if (data.is_completed) {
+                            row.classList.add('table-secondary');
+                            this.style.color = '#28a745';  // Vert
+                            this.title = 'Marquer comme non terminé';
+                        } else {
+                            row.classList.remove('table-secondary');
+                            this.style.color = '#dee2e6';  // Gris
+                            this.title = 'Marquer comme terminé';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        });
+
+        // Gérer l'ouverture du panneau de formulaire
+        const taskFormPanel = new bootstrap.Offcanvas(document.getElementById('taskFormPanel'));
+        
+        // Pour l'édition de tâche
+        document.querySelectorAll('.task-edit').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.href;
+                fetch(url)
+                    .then(response => response.text())
+                    .then(html => {
+                        document.querySelector('#taskFormPanel .offcanvas-body').innerHTML = html;
+                        taskFormPanel.show();
+                        initializeTaskForm();
+                    });
+            });
+        });
+
+        // Fonction pour initialiser le formulaire
+        function initializeTaskForm() {
+            console.log('Initializing task form...');
+            const form = document.getElementById('taskForm');
+            if (!form) {
+                console.log('Form not found');
+                return;
+            }
+            
+            const panel = form.closest('.offcanvas');
+            console.log('Panel found:', panel);
+            
+            // Initialiser Select2 pour les utilisateurs assignés
+            console.log('Initializing users select2...');
+            const usersSelect = $('#id_assigned_users');
+            if (usersSelect.length) {
+                usersSelect.hide();
+                usersSelect.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: panel
+                });
+                console.log('Users select2 initialized');
+            } else {
+                console.log('Users select element not found');
+            }
+
+            // Initialiser Select2 pour les tags
+            console.log('Initializing tags select2...');
+            const tagsSelect = $('#id_tags');
+            if (tagsSelect.length) {
+                // S'assurer que l'élément est caché avant l'initialisation
+                tagsSelect.hide();
+                
+                tagsSelect.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: panel,
+                    tags: true,
+                    ajax: {
+                        url: '{% url "fabprojects:tag_autocomplete" %}',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                q: params.term
+                            };
+                        },
+                        processResults: function(data) {
+                            return {
+                                results: data.results
+                            };
+                        }
+                    },
+                    templateResult: formatTagResult,
+                    templateSelection: formatTagSelection
+                });
+                
+                // Vérifier l'état de visibilité après l'initialisation
+                console.log('Tags select2 initialized');
+                console.log('Select2 container visibility:', $('.select2-container').is(':visible'));
+                console.log('Original select visibility:', tagsSelect.is(':visible'));
+            } else {
+                console.log('Tags select element not found');
+            }
+        }
+
+        function formatTagResult(tag) {
+            if (!tag.id || !tag.color) return tag.text;
+            return $(`
+                <div class="d-flex align-items-center">
+                    <span class="me-2" style="width: 12px; height: 12px; border-radius: 50%; background-color: ${tag.color}"></span>
+                    <span>${tag.text}</span>
+                </div>
+            `);
+        }
+
+        function formatTagSelection(tag) {
+            if (!tag.id || !tag.color) return tag.text;
+            return $(`
+                <div class="d-flex align-items-center">
+                    <span class="me-1" style="width: 8px; height: 8px; border-radius: 50%; background-color: ${tag.color}"></span>
+                    <span>${tag.text}</span>
+                </div>
+            `);
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %} 

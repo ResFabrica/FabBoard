@@ -1,0 +1,68 @@
+{% extends 'fabprojects/base_projects.html' %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Vues des Projets</h1>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'fabprojects:view_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nouvelle Vue
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for view in views %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">{{ view.name }}</h5>
+                        <div class="btn-group">
+                            <a href="{% url 'fabprojects:view_edit' view.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'fabprojects:view_delete' view.id %}" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">{{ view.fablab.name }}</p>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="stat-card">
+                                    <h6>Sections</h6>
+                                    <p class="h3">{{ view.sections.count }}</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-card">
+                                    <h6>Tâches</h6>
+                                    <p class="h3">{{ view.sections.all|length }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{% url 'fabprojects:view_detail' view.id %}" class="btn btn-outline-primary btn-block">
+                                Voir les détails
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted">
+                        Créée le {{ view.created_at|date:"d/m/Y" }}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col">
+                <div class="alert alert-info">
+                    Aucune vue n'a été créée. 
+                    <a href="{% url 'fabprojects:view_create' %}" class="alert-link">Créer votre première vue</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

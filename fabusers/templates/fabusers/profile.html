@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .avatar-circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: white;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .avatar-circle:hover {
+        transform: scale(1.05);
+    }
+    .color-palette {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+        margin-top: 1rem;
+    }
+    .color-option {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: transform 0.2s;
+    }
+    .color-option:hover {
+        transform: scale(1.1);
+    }
+    .color-option.selected {
+        border-color: #000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Profil Utilisateur</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="avatar-circle mx-auto" id="userAvatar" style="background-color: {{ user.profile.avatar_color|default:'#007bff' }}">
+                            {{ user.get_initials }}
+                        </div>
+                        <div class="color-palette" id="colorPalette"></div>
+                        <input type="hidden" id="avatarColor" name="avatar_color" value="{{ user.profile.avatar_color|default:'#007bff' }}">
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-4">
+                            <strong>Nom et prénom :</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ user.get_full_name|default:user.username }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4">
+                            <strong>Email :</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {{ user.email }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4">
+                            <strong>Accepte les contacts :</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {% if user.accepts_contact %}
+                                <span class="badge bg-success">Oui</span>
+                            {% else %}
+                                <span class="badge bg-danger">Non</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4">
+                            <strong>FabLabs membres :</strong>
+                        </div>
+                        <div class="col-sm-8">
+                            {% for fablab in user.fablabs.all %}
+                                <span class="badge bg-primary">{{ fablab.name }}</span>
+                            {% empty %}
+                                <span class="text-muted">Aucun FabLab</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const avatar = document.querySelector('#userAvatar');
+    const colorPalette = document.querySelector('#colorPalette');
+    const colorInput = document.querySelector('#avatarColor');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Définir les couleurs prédéfinies
+    const predefinedColors = [
+        { name: 'Bleu', color: '#007bff' },
+        { name: 'Indigo', color: '#6610f2' },
+        { name: 'Violet', color: '#6f42c1' },
+        { name: 'Rose', color: '#e83e8c' },
+        { name: 'Rouge', color: '#dc3545' },
+        { name: 'Orange', color: '#fd7e14' },
+        { name: 'Jaune', color: '#ffc107' },
+        { name: 'Vert', color: '#28a745' },
+        { name: 'Vert clair', color: '#20c997' },
+        { name: 'Cyan', color: '#17a2b8' },
+        { name: 'Gris', color: '#6c757d' },
+        { name: 'Gris foncé', color: '#343a40' }
+    ];
+
+    // Créer la palette de couleurs
+    predefinedColors.forEach(({ name, color }) => {
+        const colorOption = document.createElement('div');
+        colorOption.className = 'color-option';
+        colorOption.style.backgroundColor = color;
+        colorOption.title = name;
+        colorOption.dataset.color = color;
+        
+        // Sélectionner la couleur actuelle
+        if (color === colorInput.value) {
+            colorOption.classList.add('selected');
+        }
+        
+        colorOption.addEventListener('click', async function() {
+            // Mettre à jour la sélection visuelle
+            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            // Mettre à jour l'avatar et sauvegarder la couleur
+            const newColor = this.dataset.color;
+            avatar.style.backgroundColor = newColor;
+            colorInput.value = newColor;
+            
+            try {
+                // Sauvegarder la couleur via une requête AJAX
+                const response = await fetch('{% url "fabusers:update_avatar_color" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        color: newColor
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Mettre à jour l'avatar dans la barre de navigation
+                    const navAvatar = document.querySelector('.nav-avatar');
+                    if (navAvatar) {
+                        navAvatar.style.backgroundColor = newColor;
+                    }
+                    
+                    // Feedback visuel temporaire
+                    const feedback = document.createElement('div');
+                    feedback.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+                    feedback.style.zIndex = '1050';
+                    feedback.textContent = 'Couleur enregistrée !';
+                    document.body.appendChild(feedback);
+                    
+                    setTimeout(() => {
+                        feedback.remove();
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || 'Erreur lors de l\'enregistrement');
+                }
+            } catch (error) {
+                // Feedback d'erreur
+                const feedback = document.createElement('div');
+                feedback.className = 'alert alert-danger position-fixed top-0 start-50 translate-middle-x mt-3';
+                feedback.style.zIndex = '1050';
+                feedback.textContent = error.message || 'Erreur lors de l\'enregistrement';
+                document.body.appendChild(feedback);
+                
+                setTimeout(() => {
+                    feedback.remove();
+                }, 3000);
+            }
+        });
+        
+        colorPalette.appendChild(colorOption);
+    });
+});
+</script>
+{% endblock %} 

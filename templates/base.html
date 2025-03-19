@@ -1,0 +1,205 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="h-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FabBoard{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        .maintenance-card {
+            transition: transform 0.2s;
+        }
+        .maintenance-card:hover {
+            transform: translateY(-5px);
+        }
+        .due-soon {
+            border-left: 5px solid #ffc107;
+        }
+        .overdue {
+            border-left: 5px solid #dc3545;
+        }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .content {
+            flex: 1 0 auto;
+        }
+        .footer {
+            flex-shrink: 0;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        .nav-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.9rem;
+            margin-right: 8px;
+        }
+        .navbar-brand img {
+            filter: brightness(0) invert(1);
+        }
+        .navbar {
+            background-color: #35A7FF !important;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="h-100">
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
+                <img src="{% static 'img/thumLogo.png' %}" alt="Res Fabrica" height="30" class="me-2">
+                FabBoard
+            </a>
+            {% if user.is_authenticated %}
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'fabmaintenance:machine_list' %}">
+                            <i class="fas fa-tools"></i> Machines
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="projectsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-project-diagram"></i> Projets
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="projectsDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'fabprojects:home' %}">
+                                    <i class="fas fa-home"></i> Accueil Projets
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'fabprojects:view_list' %}">
+                                    <i class="fas fa-list"></i> Toutes les Vues
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'fabprojects:my_tasks' %}">
+                                    <i class="fas fa-tasks"></i> Mes Tâches
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'fabprojects:fablab_tasks' %}">
+                                    <i class="fas fa-clipboard-list"></i> Tâches FabLab
+                                </a>
+                            </li>
+                            {% if user_views %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <h6 class="dropdown-header">Mes Vues</h6>
+                                </li>
+                                {% for view in user_views %}
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'fabprojects:view_detail' view.id %}">
+                                        <i class="fas fa-columns"></i> {{ view.name }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'fabprojects:view_create' %}">
+                                    <i class="fas fa-plus"></i> Nouvelle Vue
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% if user.is_superuser %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-cog"></i> Administration
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'admin:index' %}">
+                                    <i class="fas fa-tachometer-alt"></i> Django Admin
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'fabusers:fablab_users' %}">
+                                    <i class="fas fa-users-cog"></i> Gestion des Utilisateurs
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="navbar-nav">
+                    <a href="{% url 'fabusers:profile' %}" class="nav-link d-flex align-items-center">
+                        <div class="nav-avatar" style="background-color: {{ user.profile.avatar_color|default:'#007bff' }}">
+                            {{ user.get_initials }}
+                        </div>
+                        {{ user.get_full_name|default:user.username }}
+                    </a>
+                    <form action="{% url 'fabusers:logout' %}" method="post" class="nav-item">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link border-0 bg-transparent">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container content">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <footer class="footer py-3">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center mb-3">
+                    <span class="text-muted">Res Fabrica &copy; 2025</span>
+                </div>
+                <div class="col-12">
+                    <div class="d-flex flex-column flex-md-row justify-content-center gap-3">
+                        <a href="https://resfabrica.fr" class="text-decoration-none text-muted">
+                            <i class="fas fa-hands-helping"></i> Vous voulez vous faire accompagner dans votre FabLab ?
+                        </a>
+                        <a href="https://boutique.resfabrica.fr" class="text-decoration-none text-muted">
+                            <i class="fas fa-shopping-cart"></i> Vous souhaitez acquérir une nouvelle machine ?
+                        </a>
+                        <a href="https://prod.resfabrica.fr" class="text-decoration-none text-muted">
+                            <i class="fas fa-industry"></i> Vous souhaitez produire des objets issus de votre FabLab ?
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- jQuery first, then Bootstrap Bundle with Popper -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

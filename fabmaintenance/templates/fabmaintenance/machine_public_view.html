@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ machine.name }} - FabBoard{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h1 class="card-title mb-3">{{ machine.name }}</h1>
+        
+        {% if machine.image %}
+        <div class="text-center mb-4">
+            <a href="{{ machine.image.url }}" target="_blank">
+                <img src="{{ machine.image.url }}" 
+                     alt="{{ machine.name }}" 
+                     class="img-fluid rounded" 
+                     style="max-height: 300px; object-fit: contain; cursor: pointer;"
+                     title="Cliquez pour agrandir">
+            </a>
+        </div>
+        {% endif %}
+        
+        <h6 class="card-subtitle mb-2 text-muted">{{ machine.machine_type.name }}</h6>
+        <p class="card-text">
+            <strong>FabLab:</strong> {{ machine.fablab.name }}<br>
+            <strong>Numéro de série:</strong> {{ machine.serial_number|default:"Non spécifié" }}
+        </p>
+
+        <div class="mt-4">
+            <a href="{% url 'fabmaintenance:add_maintenance' machine.pk %}?public=1" 
+               class="btn btn-success">
+                <i class="fas fa-plus"></i> Enregistrer une maintenance
+            </a>
+            <small class="text-muted d-block mt-2">
+                Cliquez ici pour enregistrer une maintenance effectuée aujourd'hui
+            </small>
+        </div>
+    </div>
+</div>
+
+{% if upcoming_maintenance %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0">Maintenances à venir</h5>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            {% for maintenance in upcoming_maintenance %}
+            <div class="list-group-item {% if maintenance.is_due_soon %}due-soon{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">{{ maintenance.maintenance_type.name }}</h6>
+                        <small class="text-muted">
+                            Prévue le {{ maintenance.scheduled_date|date:"d/m/Y" }}
+                            {% if maintenance.scheduling_type == 'periodic' %}
+                            <span class="badge bg-info">Périodique ({{ maintenance.period_days }} jours)</span>
+                            {% endif %}
+                            {% if maintenance.significant %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Maintenance marquante
+                            </span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    <form method="post" action="{% url 'fabmaintenance:complete_maintenance' maintenance.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-check"></i> Marquer comme terminée
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if completed_maintenance %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="card-title mb-0">Dernières maintenances effectuées</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Réalisée par</th>
+                        <th>Notes</th>
+                        <th>Type de programmation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for maintenance in completed_maintenance %}
+                    <tr>
+                        <td>{{ maintenance.maintenance_type.name }}</td>
+                        <td>{{ maintenance.completed_date|date:"d/m/Y" }}</td>
+                        <td>{{ maintenance.completed_by|default:"Non spécifié" }}</td>
+                        <td>{{ maintenance.notes|default:"-" }}</td>
+                        <td>
+                            {% if maintenance.scheduling_type == 'periodic' %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-sync-alt"></i> 
+                                Récurrente ({{ maintenance.period_days }} jours)
+                            </span>
+                            {% elif maintenance.scheduling_type == 'scheduled' %}
+                            <span class="badge bg-primary">
+                                <i class="fas fa-calendar"></i> 
+                                Planifiée
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-check"></i> 
+                                Ponctuelle
+                            </span>
+                            {% endif %}
+                            {% if maintenance.significant %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Maintenance marquante
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 

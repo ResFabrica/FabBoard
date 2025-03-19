@@ -1,0 +1,92 @@
+{% extends 'fabprojects/base_projects.html' %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des tags</h1>
+        <a href="{% url 'fabprojects:tag_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nouveau tag
+        </a>
+    </div>
+
+    {% regroup tags by fablab as fablab_tags %}
+    {% for fablab in fablab_tags %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ fablab.grouper.name }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Couleur</th>
+                            <th>FabLab</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tag in fablab.list %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'fabprojects:tag_tasks' tag.id %}" class="text-decoration-none">
+                                    <span class="badge" style="background-color: {{ tag.color }}">
+                                        {{ tag.name }}
+                                    </span>
+                                </a>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="color-preview me-2" style="width: 20px; height: 20px; background-color: {{ tag.color }}; border-radius: 4px;"></div>
+                                    {{ tag.color }}
+                                </div>
+                            </td>
+                            <td>{{ tag.fablab.name }}</td>
+                            <td>
+                                <a href="{% url 'fabprojects:tag_edit' tag.id %}" class="btn btn-sm btn-outline-primary me-2">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ tag.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <!-- Modal de confirmation de suppression -->
+                                <div class="modal fade" id="deleteModal{{ tag.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ tag.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ tag.id }}">Confirmer la suppression</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Êtes-vous sûr de vouloir supprimer le tag "{{ tag.name }}" du FabLab "{{ tag.fablab.name }}" ?
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                <form action="{% url 'fabprojects:tag_delete' tag.id %}" method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">Aucun tag n'a été créé pour ce FabLab.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">
+        Aucun tag n'a été créé dans vos FabLabs.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %} 

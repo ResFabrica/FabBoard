@@ -1,0 +1,117 @@
+{% load static %}
+<input type="hidden" name="{{ widget.name }}" {% if widget.value %}value="{{ widget.value }}"{% endif %} id="{{ widget.attrs.id }}_hidden" />
+<select class="form-control" id="{{ widget.attrs.id }}" multiple></select>
+
+<script>
+$(document).ready(function() {
+    var $select = $('#{{ widget.attrs.id }}');
+    var $hidden = $('#{{ widget.attrs.id }}_hidden');
+    
+    $select.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        tags: true,
+        placeholder: "Sélectionnez ou créez des tags",
+        allowClear: true,
+        ajax: {
+            url: '{% url "fabprojects:tag_autocomplete" %}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term
+                };
+            },
+            processResults: function(data) {
+                return {
+                    results: data.results
+                };
+            },
+            cache: true
+        },
+        createTag: function(params) {
+            return {
+                id: params.term,
+                text: params.term,
+                newTag: true
+            };
+        },
+        templateResult: function(data) {
+            if (data.loading) {
+                return data.text;
+            }
+            
+            var $container = $(
+                "<div class='select2-result-tag'>" +
+                "<span class='tag-color-dot' style='background-color: " + (data.color || "#cccccc") + "'></span>" +
+                "<span class='tag-name'>" + data.text + "</span>" +
+                "</div>"
+            );
+            
+            return $container;
+        },
+        templateSelection: function(data) {
+            if (!data.id) {
+                return data.text;
+            }
+            
+            var $container = $(
+                "<span class='tag-color-dot' style='background-color: " + (data.color || "#cccccc") + "'></span>" +
+                "<span class='tag-name'>" + data.text + "</span>"
+            );
+            
+            return $container;
+        }
+    });
+
+    // Initialiser avec les tags existants
+    var existingTags = {{ widget.tags|default:"[]"|safe }};
+    if (existingTags.length > 0) {
+        existingTags.forEach(function(tag) {
+            var option = new Option(tag.text, tag.id, true, true);
+            $select.append(option);
+        });
+        $select.trigger('change');
+    }
+
+    // Mettre à jour le champ caché lors des changements
+    $select.on('change', function() {
+        var selectedTags = [];
+        $select.find('option:selected').each(function() {
+            var $option = $(this);
+            var value = $option.val();
+            // Si c'est un nouveau tag, utiliser le texte comme valeur
+            if ($option.data('select2-tag')) {
+                value = $option.text();
+            }
+            selectedTags.push(value);
+        });
+        // Ne mettre à jour le champ caché que si nous avons des tags
+        if (selectedTags.length > 0) {
+            $hidden.val(selectedTags.join(','));
+        } else {
+            $hidden.val('');
+        }
+    });
+});
+</script>
+
+<style>
+.select2-result-tag {
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.tag-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.tag-name {
+    display: inline-block;
+}
+</style> 

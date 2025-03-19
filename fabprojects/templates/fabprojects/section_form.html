@@ -1,0 +1,35 @@
+{% extends 'fabprojects/form_base.html' %}
+
+{% block help_text %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Aide</h5>
+    </div>
+    <div class="card-body">
+        <p>Les sections vous permettent d'organiser vos tâches en groupes logiques.</p>
+        <p>Par exemple :</p>
+        <ul>
+            <li>À faire</li>
+            <li>En cours</li>
+            <li>En attente</li>
+            <li>Terminé</li>
+        </ul>
+        <p>L'ordre des sections peut être modifié pour refléter votre flux de travail.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Définir l'URL de retour pour le bouton Annuler
+        var cancelButton = document.querySelector('a.btn-secondary');
+        {% if section %}
+            cancelButton.href = "{% url 'fabprojects:view_detail' section.view.id %}";
+        {% else %}
+            cancelButton.href = "{% url 'fabprojects:view_detail' view.id %}";
+        {% endif %}
+    });
+</script>
+{% endblock %} 

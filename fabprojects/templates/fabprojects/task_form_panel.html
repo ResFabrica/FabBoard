@@ -1,0 +1,282 @@
+{% load crispy_forms_tags %}
+
+<script>
+// Définir la fonction deleteFile avant son utilisation
+function deleteFile(event, fileId, url) {
+    event.preventDefault();
+    event.stopPropagation();
+    console.log('Tentative de suppression du fichier:', fileId);
+    
+    if (confirm('Voulez-vous vraiment supprimer ce fichier ?')) {
+        const loadingOverlay = document.querySelector('.loading-overlay');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        loadingOverlay.style.display = 'flex';
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            console.log('Réponse reçue:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Données reçues:', data);
+            loadingOverlay.style.display = 'none';
+            if (data.success) {
+                const button = event.target.closest('.list-group-item');
+                button.remove();
+                
+                // Si c'était le dernier fichier, masquer la section
+                const fileList = document.querySelector('.list-group');
+                if (!fileList.querySelector('.list-group-item')) {
+                    fileList.closest('.mt-3').style.display = 'none';
+                }
+            } else {
+                console.error('Erreur lors de la suppression:', data.error);
+                alert('Une erreur est survenue lors de la suppression du fichier : ' + (data.error || 'Erreur inconnue'));
+            }
+        })
+        .catch(error => {
+            console.error('Erreur lors de la requête:', error);
+            loadingOverlay.style.display = 'none';
+            alert('Une erreur est survenue lors de la suppression du fichier.');
+        });
+    }
+}
+</script>
+
+<style>
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    background-color: transparent;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-message {
+    color: #dc3545;
+    margin-top: 10px;
+    display: none;
+}
+
+.offcanvas-body {
+    position: relative;
+}
+</style>
+
+<div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="taskFormPanelLabel">{{ title }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+</div>
+<div class="offcanvas-body">
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+    <form method="post" id="taskForm" enctype="multipart/form-data" data-url="{% if task %}{% url 'fabprojects:task_edit' task.id %}{% else %}{% url 'fabprojects:task_create' section.id %}{% endif %}">
+        {% csrf_token %}
+        {{ form|crispy }}
+
+        <div class="error-message"></div>
+
+        {% if task and task.files.exists %}
+        <div class="mt-3">
+            <h6>Fichiers attachés</h6>
+            <div class="list-group">
+                {% for file in task.files.all %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ file.file.url }}" target="_blank" class="text-decoration-none">
+                        <i class="fas fa-file me-2"></i>{{ file.filename }}
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger delete-file" data-file-id="{{ file.id }}" data-delete-url="{% url 'fabprojects:task_file_delete' file.id %}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="offcanvas">Annuler</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Attendre que le panneau soit chargé
+const taskFormPanel = document.getElementById('taskFormPanel');
+if (taskFormPanel) {
+    taskFormPanel.addEventListener('shown.bs.offcanvas', function () {
+        const form = document.getElementById('taskForm');
+        const loadingOverlay = document.querySelector('.loading-overlay');
+        const errorMessage = document.querySelector('.error-message');
+        const dateInput = document.querySelector('input[type="date"]');
+        const fileInput = document.querySelector('input[type="file"]');
+
+        // Attacher les event listeners aux boutons de suppression
+        document.querySelectorAll('.delete-file').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const fileId = this.dataset.fileId;
+                const deleteUrl = this.dataset.deleteUrl;
+                console.log('Tentative de suppression du fichier:', fileId);
+                
+                if (confirm('Voulez-vous vraiment supprimer ce fichier ?')) {
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    loadingOverlay.style.display = 'flex';
+                    
+                    fetch(deleteUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        console.log('Réponse reçue:', response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Données reçues:', data);
+                        loadingOverlay.style.display = 'none';
+                        if (data.success) {
+                            this.closest('.list-group-item').remove();
+                            
+                            // Si c'était le dernier fichier, masquer la section
+                            const fileList = document.querySelector('.list-group');
+                            if (!fileList.querySelector('.list-group-item')) {
+                                fileList.closest('.mt-3').style.display = 'none';
+                            }
+                        } else {
+                            console.error('Erreur lors de la suppression:', data.error);
+                            alert('Une erreur est survenue lors de la suppression du fichier : ' + (data.error || 'Erreur inconnue'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur lors de la requête:', error);
+                        loadingOverlay.style.display = 'none';
+                        alert('Une erreur est survenue lors de la suppression du fichier.');
+                    });
+                }
+            });
+        });
+
+        // Configurer l'input date pour utiliser le format yyyy-MM-dd
+        if (dateInput) {
+            dateInput.addEventListener('change', function() {
+                if (this.value) {
+                    const date = new Date(this.value);
+                    if (!isNaN(date)) {
+                        const yyyy = date.getFullYear();
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(date.getDate()).padStart(2, '0');
+                        this.value = `${yyyy}-${mm}-${dd}`;
+                    }
+                }
+            });
+        }
+
+        // Gérer la soumission du formulaire
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            // Afficher l'overlay de chargement
+            loadingOverlay.style.display = 'flex';
+            errorMessage.style.display = 'none';
+            
+            fetch(this.getAttribute('data-url'), {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingOverlay.style.display = 'none';
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    // Afficher les erreurs
+                    errorMessage.style.display = 'block';
+                    if (data.errors) {
+                        let errorText = 'Erreurs :<br>';
+                        for (let field in data.errors) {
+                            errorText += `${field}: ${data.errors[field].join(', ')}<br>`;
+                        }
+                        errorMessage.innerHTML = errorText;
+                    } else {
+                        errorMessage.textContent = 'Une erreur est survenue lors de l\'enregistrement.';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingOverlay.style.display = 'none';
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Une erreur est survenue lors de la communication avec le serveur.';
+            });
+        });
+
+        // Gérer le drag & drop des fichiers
+        if (fileInput) {
+            const dropZone = fileInput.closest('.form-group');
+            
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('border', 'border-primary');
+            });
+            
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('border', 'border-primary');
+            });
+            
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('border', 'border-primary');
+                
+                const files = e.dataTransfer.files;
+                const dt = new DataTransfer();
+                
+                // Ajouter les nouveaux fichiers
+                for (let file of files) {
+                    dt.items.add(file);
+                }
+                
+                fileInput.files = dt.files;
+            });
+        }
+    });
+}
+</script> 

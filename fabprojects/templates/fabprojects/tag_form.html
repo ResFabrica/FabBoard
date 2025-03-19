@@ -1,0 +1,203 @@
+{% extends 'fabprojects/base_projects.html' %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    .color-preview {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+        border: 1px solid #ddd;
+    }
+    .color-palette {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .color-option {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: transform 0.2s;
+    }
+    .color-option:hover {
+        transform: scale(1.1);
+    }
+    .color-option.selected {
+        border-color: #000;
+    }
+    #id_color {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="tagForm" {% if tag %}data-tag-id="{{ tag.id }}"{% endif %}>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        {% for field in form.visible_fields %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {% if field.name == 'color' %}
+                                <div>
+                                    <div class="d-flex align-items-center">
+                                        <span class="color-preview" id="colorPreview"></span>
+                                        <span id="selectedColorName">Aucune couleur sélectionnée</span>
+                                    </div>
+                                    <div class="color-palette" id="colorPalette"></div>
+                                    {{ field }}
+                                </div>
+                            {% else %}
+                                {{ field }}
+                            {% endif %}
+                            {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in field.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'fabprojects:tag_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const colorInput = document.querySelector('#id_color');
+    const colorPreview = document.querySelector('#colorPreview');
+    const colorPalette = document.querySelector('#colorPalette');
+    const selectedColorName = document.querySelector('#selectedColorName');
+    const nameInput = document.querySelector('#id_name');
+    const form = document.querySelector('#tagForm');
+
+    // Définir les couleurs prédéfinies avec leurs noms
+    const predefinedColors = [
+        { name: 'Rouge', color: '#dc3545' },
+        { name: 'Rose', color: '#e83e8c' },
+        { name: 'Orange', color: '#fd7e14' },
+        { name: 'Jaune', color: '#ffc107' },
+        { name: 'Vert', color: '#28a745' },
+        { name: 'Vert clair', color: '#20c997' },
+        { name: 'Cyan', color: '#17a2b8' },
+        { name: 'Bleu', color: '#007bff' },
+        { name: 'Bleu foncé', color: '#0056b3' },
+        { name: 'Indigo', color: '#6610f2' },
+        { name: 'Violet', color: '#6f42c1' },
+        { name: 'Gris', color: '#6c757d' },
+        { name: 'Gris foncé', color: '#343a40' },
+        { name: 'Marron', color: '#856404' },
+        { name: 'Turquoise', color: '#00b3b3' },
+        { name: 'Corail', color: '#ff6b6b' }
+    ];
+
+    // Créer la palette de couleurs
+    predefinedColors.forEach(({ name, color }) => {
+        const colorOption = document.createElement('div');
+        colorOption.className = 'color-option';
+        colorOption.style.backgroundColor = color;
+        colorOption.title = name;
+        colorOption.dataset.color = color;
+        colorOption.dataset.name = name;
+        
+        // Sélectionner la couleur si c'est celle actuellement définie
+        if (color === colorInput.value) {
+            colorOption.classList.add('selected');
+            selectedColorName.textContent = name;
+        }
+        
+        colorOption.addEventListener('click', function() {
+            // Mettre à jour la sélection visuelle
+            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            // Mettre à jour la couleur sélectionnée
+            colorInput.value = this.dataset.color;
+            selectedColorName.textContent = this.dataset.name;
+            updateColorPreview();
+        });
+        
+        colorPalette.appendChild(colorOption);
+    });
+
+    // Si aucune couleur n'est définie, en sélectionner une au hasard
+    if (!colorInput.value) {
+        const randomColor = predefinedColors[Math.floor(Math.random() * predefinedColors.length)];
+        colorInput.value = randomColor.color;
+        selectedColorName.textContent = randomColor.name;
+        document.querySelector(`[data-color="${randomColor.color}"]`).classList.add('selected');
+    }
+
+    // Mettre à jour l'aperçu de la couleur
+    function updateColorPreview() {
+        colorPreview.style.backgroundColor = colorInput.value;
+    }
+    updateColorPreview();
+
+    // Vérifier l'unicité du nom avant la soumission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const tagName = nameInput.value.trim();
+        const tagId = form.dataset.tagId;  // Récupérer l'ID du tag s'il existe
+        const url = new URL('{% url "fabprojects:check_tag_exists" %}', window.location.origin);
+        url.searchParams.append('name', tagName);
+        if (tagId) {
+            url.searchParams.append('tag_id', tagId);
+        }
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    alert(`Un tag avec le nom "${tagName}" existe déjà.`);
+                } else {
+                    form.submit();
+                }
+            });
+    });
+});
+</script>
+{% endblock %} 

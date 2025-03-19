@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Inscription - FabBoard{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-body">
+                {% if invitation %}
+                    <h2 class="card-title text-center mb-2">Rejoindre {{ fablab.name }}</h2>
+                    <p class="text-center text-muted mb-4">Créez votre compte pour rejoindre ce FabLab</p>
+                {% else %}
+                    <h2 class="card-title text-center mb-4">Créer un compte</h2>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h5>Des erreurs sont présentes dans le formulaire :</h5>
+                        {{ form.errors }}
+                    </div>
+                    {% endif %}
+
+                    {{ form|crispy }}
+
+                    <div class="text-center mb-3">
+                        <a href="{% url 'fabusers:terms' %}" target="_blank">Lire les conditions générales d'utilisation</a>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        {% if invitation %}
+                            <button type="submit" class="btn btn-primary">Rejoindre {{ fablab.name }}</button>
+                        {% else %}
+                            <button type="submit" class="btn btn-primary">Créer mon compte</button>
+                        {% endif %}
+                        <a href="{% url 'fabusers:login' %}" class="btn btn-outline-secondary">Déjà inscrit ? Se connecter</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

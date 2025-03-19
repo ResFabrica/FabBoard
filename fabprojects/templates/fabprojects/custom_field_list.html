@@ -1,0 +1,95 @@
+{% extends 'fabprojects/base_projects.html' %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des champs personnalisés</h1>
+        <a href="{% url 'fabprojects:custom_field_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nouveau champ
+        </a>
+    </div>
+
+    {% regroup custom_fields by fablab as fablab_fields %}
+    {% for fablab in fablab_fields %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ fablab.grouper.name }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Type</th>
+                            <th>Options</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for field in fablab.list %}
+                        <tr>
+                            <td>{{ field.name }}</td>
+                            <td>{{ field.get_field_type_display }}</td>
+                            <td>
+                                {% if field.field_type == 'choice' %}
+                                    {{ field.choices|default:"-" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'fabprojects:custom_field_edit' field.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ field.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Modal de confirmation de suppression -->
+                                <div class="modal fade" id="deleteModal{{ field.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ field.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ field.id }}">Confirmer la suppression</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Êtes-vous sûr de vouloir supprimer le champ "{{ field.name }}" du FabLab "{{ field.fablab.name }}" ?
+                                                <br><br>
+                                                <div class="alert alert-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    Attention : Cette action supprimera également toutes les valeurs associées à ce champ dans les tâches existantes.
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                <form action="{% url 'fabprojects:custom_field_delete' field.id %}" method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">Aucun champ personnalisé n'a été créé pour ce FabLab.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">
+        Aucun champ personnalisé n'a été créé dans vos FabLabs.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %} 
