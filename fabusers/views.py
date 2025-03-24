@@ -1,17 +1,16 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .forms import UserRegistrationForm, InvitationRegistrationForm
+from .forms import UserRegistrationForm
 from .models import FabLab
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Q, Count
 import json
 import csv
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
-from django.urls import reverse
 
 User = get_user_model()
 
@@ -64,10 +63,25 @@ def fablab_users(request):
     if request.user.is_superuser:
         other_fablabs = FabLab.objects.exclude(admins=request.user).prefetch_related('users', 'admins', 'users__profile')
     
+    # Récupérer le FabLab sélectionné depuis l'URL
+    selected_fablab_id = request.GET.get('fablab')
+    selected_fablab = None
+    
+    if selected_fablab_id:
+        try:
+            # Vérifier si l'utilisateur a accès à ce FabLab
+            if request.user.is_superuser:
+                selected_fablab = FabLab.objects.get(id=selected_fablab_id)
+            else:
+                selected_fablab = admin_fablabs.get(id=selected_fablab_id)
+        except FabLab.DoesNotExist:
+            pass
+    
     return render(request, 'fabusers/fablab_users.html', {
         'admin_fablabs': admin_fablabs,
         'other_fablabs': other_fablabs,
-        'is_superuser': request.user.is_superuser
+        'is_superuser': request.user.is_superuser,
+        'selected_fablab': selected_fablab
     })
 
 @login_required
@@ -300,41 +314,134 @@ def update_avatar_color(request):
     
     return JsonResponse({'status': 'error', 'message': 'Méthode non autorisée'}, status=405)
 
-def register_with_invitation(request, token):
-    """Vue pour l'inscription avec un token d'invitation."""
-    fablab = get_object_or_404(FabLab, invitation_token=token)
+@login_required
+def fablab_admin(request):
+    """Vue pour gérer les FabLabs."""
+    # FabLabs où l'utilisateur est admin
+    admin_fablabs = FabLab.objects.filter(admins=request.user).prefetch_related('users', 'admins')
     
-    if request.method == 'POST':
-        form = InvitationRegistrationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            fablab.users.add(user)
-            user.profile.fablab = fablab  # Définir comme FabLab principal
-            user.profile.save()
-            login(request, user)
-            messages.success(request, f'Inscription réussie ! Vous êtes maintenant membre de {fablab.name}')
-            return redirect('home')
-    else:
-        form = InvitationRegistrationForm()
-    
-    return render(request, 'fabusers/register.html', {
-        'form': form,
-        'fablab': fablab,
-        'invitation': True
+    return render(request, 'fabusers/fablab_admin.html', {
+        'admin_fablabs': admin_fablabs,
     })
 
 @login_required
-def generate_invitation_link(request, fablab_id):
-    """API pour générer un nouveau lien d'invitation."""
+def delete_fablab(request, fablab_id):
+    """Vue pour supprimer un FabLab."""
     if not request.user.is_superuser and not request.user.admin_fablabs.filter(id=fablab_id).exists():
-        return JsonResponse({'status': 'error', 'message': 'Permission refusée'}, status=403)
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
     
-    fablab = get_object_or_404(FabLab, id=fablab_id)
-    token = fablab.generate_invitation_token()
-    url = reverse('fabusers:register_with_invitation', kwargs={'token': token})
-    invitation_link = request.build_absolute_uri(url)
+    try:
+        fablab = FabLab.objects.get(id=fablab_id)
+        fablab.delete()
+        return JsonResponse({'success': True})
+    except FabLab.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'FabLab not found'}, status=404)
+
+@login_required
+def update_fablab(request, fablab_id):
+    """Vue pour mettre à jour les informations d'un FabLab."""
+    if not request.user.is_superuser and not request.user.admin_fablabs.filter(id=fablab_id).exists():
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
     
-    return JsonResponse({
-        'status': 'success',
-        'invitation_link': invitation_link
-    })
+    try:
+        fablab = FabLab.objects.get(id=fablab_id)
+        data = json.loads(request.body)
+        
+        # Vérifier si le nom existe déjà pour un autre FabLab
+        if FabLab.objects.exclude(id=fablab_id).filter(name=data.get('name')).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Un FabLab avec ce nom existe déjà'
+            }, status=400)
+        
+        fablab.name = data.get('name', fablab.name)
+        fablab.address = data.get('address', fablab.address)
+        fablab.save()
+        
+        return JsonResponse({'success': True})
+    except FabLab.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'FabLab not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid data'}, status=400)
+
+@login_required
+def duplicate_fablab(request, fablab_id):
+    """Vue pour dupliquer un FabLab avec ses machines."""
+    if not request.user.is_superuser and not request.user.admin_fablabs.filter(id=fablab_id).exists():
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    
+    try:
+        original_fablab = FabLab.objects.get(id=fablab_id)
+        data = json.loads(request.body)
+        new_name = data.get('name', f"{original_fablab.name} (copie)")
+        
+        # Vérifier si le nom existe déjà
+        if FabLab.objects.filter(name=new_name).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Un FabLab avec ce nom existe déjà'
+            }, status=400)
+        
+        # Créer une copie du FabLab avec le nouveau nom
+        new_fablab = FabLab.objects.create(
+            name=new_name,
+            address=original_fablab.address
+        )
+        
+        # Copier les utilisateurs et administrateurs
+        new_fablab.users.set(original_fablab.users.all())
+        new_fablab.admins.set(original_fablab.admins.all())
+        
+        # Dupliquer les machines si demandé
+        if data.get('duplicate_machines', False):
+            from fabmaintenance.models import Machine
+            for machine in original_fablab.machine_set.all():
+                Machine.objects.create(
+                    name=machine.name,
+                    machine_type=machine.machine_type,
+                    fablab=new_fablab,
+                    serial_number=f"{machine.serial_number} (copie)" if machine.serial_number else None,
+                    image=machine.image if machine.image else None
+                )
+        
+        return JsonResponse({'success': True})
+    except FabLab.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'FabLab not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid data'}, status=400)
+
+@login_required
+def admin_dashboard(request):
+    """Vue pour le tableau de bord d'administration."""
+    if not request.user.is_superuser and not request.user.admin_fablabs.exists():
+        return HttpResponseForbidden("Accès non autorisé")
+    
+    # Statistiques globales pour les super utilisateurs
+    if request.user.is_superuser:
+        total_users = User.objects.count()
+        total_fablabs = FabLab.objects.count()
+        total_admins = User.objects.filter(is_staff=True).count()
+        fablabs = FabLab.objects.annotate(
+            user_count=Count('users'),
+            admin_count=Count('admins')
+        ).all()
+    else:
+        # Statistiques limitées aux FabLabs administrés
+        admin_fablabs = request.user.admin_fablabs.all()
+        total_users = User.objects.filter(fablabs__in=admin_fablabs).distinct().count()
+        total_fablabs = admin_fablabs.count()
+        total_admins = User.objects.filter(admin_fablabs__in=admin_fablabs).distinct().count()
+        fablabs = admin_fablabs.annotate(
+            user_count=Count('users'),
+            admin_count=Count('admins')
+        )
+    
+    context = {
+        'total_users': total_users,
+        'total_fablabs': total_fablabs,
+        'total_admins': total_admins,
+        'fablabs': fablabs,
+        'is_superuser': request.user.is_superuser,
+    }
+    
+    return render(request, 'fabusers/admin_dashboard.html', context)

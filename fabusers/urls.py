@@ -5,6 +5,7 @@ from . import views
 app_name = 'fabusers'
 
 urlpatterns = [
+    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('register/', views.register, name='register'),
     path('login/', views.user_login, name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
@@ -20,6 +21,8 @@ urlpatterns = [
     path('fablab/<int:fablab_id>/bulk-add-admin/', views.bulk_add_admin, name='bulk_add_admin'),
     path('fablab/<int:fablab_id>/bulk-remove-users/', views.bulk_remove_users, name='bulk_remove_users'),
     path('profile/update-avatar-color/', views.update_avatar_color, name='update_avatar_color'),
-    path('register/invitation/<str:token>/', views.register_with_invitation, name='register_with_invitation'),
-    path('fablab/<int:fablab_id>/generate-invitation/', views.generate_invitation_link, name='generate_invitation_link'),
+    path('fablab-admin/', views.fablab_admin, name='fablab_admin'),
+    path('fablab/<int:fablab_id>/delete/', views.delete_fablab, name='delete_fablab'),
+    path('fablab/<int:fablab_id>/duplicate/', views.duplicate_fablab, name='duplicate_fablab'),
+    path('fablab/<int:fablab_id>/update/', views.update_fablab, name='update_fablab'),
 ] 
