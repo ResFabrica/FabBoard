@@ -3,134 +3,305 @@
 
 {% block title %}{{ machine.name }} - FabBoard{% endblock %}
 
+{% block extra_css %}
+<style>
+.badge.priority-1 { background-color: #6c757d !important; }
+.badge.priority-2 { background-color: #17a2b8 !important; }
+.badge.priority-3 { background-color: #ffc107 !important; color: #000 !important; }
+.badge.priority-4 { background-color: #dc3545 !important; }
+
+.period-badge {
+    background-color: #00b894 !important;
+}
+
+.instructions-collapse {
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.machine-image {
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.machine-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.machine-image-modal {
+    max-height: 90vh;
+    max-width: 90vw;
+    object-fit: contain;
+}
+
+.modal-fullscreen-image .modal-dialog {
+    max-width: 95vw;
+    margin: 1.75rem auto;
+}
+
+.info-icon {
+    width: 24px;
+    text-align: center;
+    margin-right: 0.5rem;
+    color: #6c757d;
+}
+
+.instructions-modal .modal-dialog {
+    max-width: 600px;
+}
+
+.instructions-list {
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: 0.25rem;
+}
+
+.instructions-list p {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+}
+
+.tools-list {
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: 0.25rem;
+}
+
+.tools-list p {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.tools-list p:before {
+    content: "•";
+    color: #00b894;
+    font-weight: bold;
+    position: absolute;
+    left: 0.5rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h1 class="card-title mb-3">{{ machine.name }}</h1>
-        
-        {% if machine.image %}
-        <div class="text-center mb-4">
-            <a href="{{ machine.image.url }}" target="_blank">
-                <img src="{{ machine.image.url }}" 
-                     alt="{{ machine.name }}" 
-                     class="img-fluid rounded" 
-                     style="max-height: 300px; object-fit: contain; cursor: pointer;"
-                     title="Cliquez pour agrandir">
-            </a>
-        </div>
-        {% endif %}
-        
-        <h6 class="card-subtitle mb-2 text-muted">{{ machine.machine_type.name }}</h6>
-        <p class="card-text">
-            <strong>FabLab:</strong> {{ machine.fablab.name }}<br>
-            <strong>Numéro de série:</strong> {{ machine.serial_number|default:"Non spécifié" }}
-        </p>
-
-        <div class="mt-4">
-            <a href="{% url 'fabmaintenance:add_maintenance' machine.pk %}?public=1" 
-               class="btn btn-success">
-                <i class="fas fa-plus"></i> Enregistrer une maintenance
-            </a>
-            <small class="text-muted d-block mt-2">
-                Cliquez ici pour enregistrer une maintenance effectuée aujourd'hui
-            </small>
-        </div>
-    </div>
-</div>
-
-{% if upcoming_maintenance %}
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="card-title mb-0">Maintenances à venir</h5>
-    </div>
-    <div class="card-body">
-        <div class="list-group">
-            {% for maintenance in upcoming_maintenance %}
-            <div class="list-group-item {% if maintenance.is_due_soon %}due-soon{% endif %}">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-1">{{ maintenance.maintenance_type.name }}</h6>
-                        <small class="text-muted">
-                            Prévue le {{ maintenance.scheduled_date|date:"d/m/Y" }}
-                            {% if maintenance.scheduling_type == 'periodic' %}
-                            <span class="badge bg-info">Périodique ({{ maintenance.period_days }} jours)</span>
-                            {% endif %}
-                            {% if maintenance.significant %}
-                            <span class="badge bg-warning">
-                                <i class="fas fa-exclamation-circle"></i>
-                                Maintenance marquante
-                            </span>
-                            {% endif %}
-                        </small>
+<div class="container-fluid px-4">
+    <!-- En-tête avec image et informations -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-4 text-center">
+                    {% if machine.image %}
+                    <img src="{{ machine.image.url }}" 
+                         alt="{{ machine.name }}" 
+                         class="img-fluid machine-image mb-3 mb-md-0"
+                         data-bs-toggle="modal"
+                         data-bs-target="#imageModal"
+                         title="Cliquez pour agrandir">
+                    {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center machine-image mb-3 mb-md-0">
+                        <i class="fas fa-cog fa-4x text-muted"></i>
                     </div>
-                    <form method="post" action="{% url 'fabmaintenance:complete_maintenance' maintenance.pk %}" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success btn-sm">
-                            <i class="fas fa-check"></i> Marquer comme terminée
-                        </button>
-                    </form>
+                    {% endif %}
+                </div>
+                <div class="col-md-8">
+                    <h1 class="h2 mb-3">{{ machine.name }}</h1>
+                    <div class="mb-3">
+                        <span class="badge bg-primary me-2">
+                            <i class="fas fa-cog me-1"></i>{{ machine.machine_type }}
+                        </span>
+                        {% if machine.template %}
+                        <span class="badge bg-info">
+                            <i class="fas fa-clone me-1"></i>{{ machine.template }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <span class="info-icon"><i class="fas fa-building"></i></span>
+                                <strong>FabLab :</strong> {{ machine.fablab }}
+                            </p>
+                            {% if machine.serial_number %}
+                            <p class="mb-2">
+                                <span class="info-icon"><i class="fas fa-barcode"></i></span>
+                                <strong>Numéro de série :</strong> {{ machine.serial_number }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if machine.template and machine.template.documentation_url %}
+                            <p class="mb-2">
+                                <span class="info-icon"><i class="fas fa-book"></i></span>
+                                <a href="{{ machine.template.documentation_url }}" target="_blank" class="text-decoration-none">
+                                    Documentation <i class="fas fa-external-link-alt ms-1 small"></i>
+                                </a>
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
-            {% endfor %}
         </div>
     </div>
-</div>
-{% endif %}
 
-{% if completed_maintenance %}
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-success text-white">
-        <h5 class="card-title mb-0">Dernières maintenances effectuées</h5>
+    {% if machine.image %}
+    <!-- Modal pour l'image -->
+    <div class="modal fade modal-fullscreen-image" id="imageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title text-white">{{ machine.name }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-0">
+                    <img src="{{ machine.image.url }}" 
+                         alt="{{ machine.name }}" 
+                         class="img-fluid machine-image-modal">
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Date</th>
-                        <th>Réalisée par</th>
-                        <th>Notes</th>
-                        <th>Type de programmation</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for maintenance in completed_maintenance %}
-                    <tr>
-                        <td>{{ maintenance.maintenance_type.name }}</td>
-                        <td>{{ maintenance.completed_date|date:"d/m/Y" }}</td>
-                        <td>{{ maintenance.completed_by|default:"Non spécifié" }}</td>
-                        <td>{{ maintenance.notes|default:"-" }}</td>
-                        <td>
-                            {% if maintenance.scheduling_type == 'periodic' %}
-                            <span class="badge bg-info">
-                                <i class="fas fa-sync-alt"></i> 
-                                Récurrente ({{ maintenance.period_days }} jours)
-                            </span>
-                            {% elif maintenance.scheduling_type == 'scheduled' %}
-                            <span class="badge bg-primary">
-                                <i class="fas fa-calendar"></i> 
-                                Planifiée
-                            </span>
-                            {% else %}
-                            <span class="badge bg-secondary">
-                                <i class="fas fa-check"></i> 
-                                Ponctuelle
-                            </span>
-                            {% endif %}
-                            {% if maintenance.significant %}
-                            <span class="badge bg-warning">
-                                <i class="fas fa-exclamation-circle"></i>
-                                Maintenance marquante
-                            </span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% endif %}
+
+    <!-- Maintenances à venir -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0">
+                <i class="fas fa-tools me-2 text-primary"></i>Maintenances à venir
+            </h5>
+            <a href="{% url 'fabmaintenance:add_maintenance' machine.pk %}?public=1" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>Enregistrer une maintenance
+            </a>
+        </div>
+        <div class="card-body">
+            {% if upcoming_maintenance %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Date prévue</th>
+                            <th>Périodicité</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for maintenance in upcoming_maintenance %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {{ maintenance.maintenance_type.name }}
+                                    <span class="badge priority-{{ maintenance.maintenance_type.priority }} ms-2">
+                                        {{ maintenance.maintenance_type.get_priority_display }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>{{ maintenance.maintenance_type.description }}</td>
+                            <td>{{ maintenance.scheduled_date|date:"d/m/Y" }}</td>
+                            <td>
+                                {% if maintenance.scheduling_type == 'periodic' %}
+                                <span class="badge period-badge">
+                                    <i class="fas fa-sync-alt me-1"></i>
+                                    {{ maintenance.period_days }} jours
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Unique
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    {% if maintenance.maintenance_type.instructions %}
+                                    <button class="btn btn-outline-primary btn-sm"
+                                            type="button"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#instructionsModal{{ maintenance.id }}">
+                                        <i class="fas fa-book-reader me-1"></i>Instructions
+                                    </button>
+                                    {% endif %}
+                                    <a href="{% url 'fabmaintenance:complete_maintenance' maintenance.pk %}?public=1"
+                                       class="btn btn-success btn-sm">
+                                        <i class="fas fa-check me-1"></i>Terminer
+                                    </a>
+                                </div>
+
+                                {% if maintenance.maintenance_type.instructions %}
+                                <!-- Modal pour les instructions -->
+                                <div class="modal fade instructions-modal" 
+                                     id="instructionsModal{{ maintenance.id }}" 
+                                     tabindex="-1" 
+                                     aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">
+                                                    <i class="fas fa-clipboard-list me-2 text-primary"></i>
+                                                    {{ maintenance.maintenance_type.name }}
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                {% if maintenance.maintenance_type.instructions %}
+                                                <div class="mb-4">
+                                                    <h6 class="mb-3">
+                                                        <i class="fas fa-tasks me-2 text-primary"></i>Instructions :
+                                                    </h6>
+                                                    <div class="instructions-list">
+                                                        {{ maintenance.maintenance_type.instructions|linebreaks }}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if maintenance.maintenance_type.required_tools %}
+                                                <div>
+                                                    <h6 class="mb-3">
+                                                        <i class="fas fa-tools me-2 text-primary"></i>Outils nécessaires :
+                                                    </h6>
+                                                    <div class="tools-list">
+                                                        {{ maintenance.maintenance_type.required_tools|linebreaks }}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                <a href="{% url 'fabmaintenance:complete_maintenance' maintenance.pk %}?public=1"
+                                                   class="btn btn-success">
+                                                    <i class="fas fa-check me-2"></i>Marquer comme terminée
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5>Aucune maintenance à venir</h5>
+                <p class="text-muted">Toutes les maintenances sont à jour</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
-{% endif %}
 {% endblock %} 

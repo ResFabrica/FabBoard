@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ template.name }} - Catalogue de machines - FabBoard{% endblock %}
+
+{% block extra_css %}
+<style>
+.maintenance-card {
+    transition: all 0.3s ease;
+}
+
+.maintenance-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.priority-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+
+.priority-1 { background-color: #6c757d; }  /* Basse */
+.priority-2 { background-color: #17a2b8; }  /* Moyenne */
+.priority-3 { background-color: #ffc107; }  /* Haute */
+.priority-4 { background-color: #dc3545; }  /* Critique */
+
+.template-image {
+    max-height: 400px;
+    object-fit: contain;
+}
+
+.side-panel {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background: white;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
+    transition: right 0.3s ease;
+    z-index: 1050;
+    overflow-y: auto;
+}
+
+.side-panel.show {
+    right: 0;
+}
+
+.side-panel-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 1040;
+}
+
+.side-panel-backdrop.show {
+    display: block;
+}
+
+.side-panel-header {
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.side-panel-body {
+    padding: 1rem;
+}
+
+.maintenance-row {
+    transition: all 0.2s ease;
+}
+
+.maintenance-row:hover {
+    background-color: #f8f9fa;
+}
+
+.add-maintenance-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1030;
+}
+
+/* Styles pour l'autocomplétion */
+.autocomplete-suggestions {
+    border: 1px solid #ddd;
+    background: #fff;
+    overflow: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 4px;
+}
+.autocomplete-suggestion {
+    padding: 8px 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+}
+.autocomplete-selected {
+    background: #f0f0f0;
+}
+.autocomplete-suggestions strong {
+    font-weight: bold;
+    color: #000;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h1 class="h3 mb-2">{{ template.name }}</h1>
+            <h5 class="text-muted">{{ template.manufacturer }} {{ template.model }}</h5>
+        </div>
+        <div class="d-flex gap-2">
+            {% if user.is_superuser %}
+            <a href="{% url 'fabmaintenance:machine_template_edit' template.pk %}" class="btn btn-outline-primary">
+                <i class="fas fa-edit me-2"></i>Modifier
+            </a>
+            <button type="button" class="btn btn-outline-secondary" onclick="showDuplicateModal()">
+                <i class="fas fa-copy me-2"></i>Dupliquer
+            </button>
+            <a href="{% url 'fabmaintenance:machine_template_delete' template.pk %}" 
+               class="btn btn-outline-danger"
+               onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ? Cette action est irréversible.')">
+                <i class="fas fa-trash me-2"></i>Supprimer
+            </a>
+            {% endif %}
+            <a href="{% url 'fabmaintenance:create_machine_from_template' template.pk %}" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>Créer une machine
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations générales -->
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    {% if template.image %}
+                    <img src="{{ template.image.url }}" 
+                         class="img-fluid rounded mb-3 template-image" 
+                         alt="{{ template.name }}">
+                    {% endif %}
+                    
+                    <h5 class="card-title">Informations</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Type</dt>
+                        <dd class="col-sm-8">{{ template.machine_type }}</dd>
+                        
+                        <dt class="col-sm-4">Fabricant</dt>
+                        <dd class="col-sm-8">{{ template.manufacturer }}</dd>
+                        
+                        <dt class="col-sm-4">Modèle</dt>
+                        <dd class="col-sm-8">{{ template.model }}</dd>
+                        
+                        {% if template.documentation_url %}
+                        <dt class="col-sm-4">Documentation</dt>
+                        <dd class="col-sm-8">
+                            <a href="{{ template.documentation_url }}" target="_blank">
+                                <i class="fas fa-external-link-alt me-1"></i>Voir la documentation
+                            </a>
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Description</h5>
+                    <p class="card-text">{{ template.description|linebreaks }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des maintenances -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Maintenances recommandées</h5>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="showMaintenancePanel()">
+                        <i class="fas fa-plus me-1"></i>Ajouter
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%">Nom</th>
+                                    <th style="width: 40%">Description</th>
+                                    <th style="width: 15%">Période</th>
+                                    <th style="width: 15%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="maintenanceTableBody">
+                                {% for maintenance in maintenances %}
+                                <tr id="maintenance-{{ maintenance.id }}" class="maintenance-row">
+                                    <td>
+                                        {{ maintenance.name }}
+                                        <span class="badge {% if maintenance.priority == 1 %}bg-danger{% elif maintenance.priority == 2 %}bg-warning{% else %}bg-info{% endif %} ms-2">
+                                            {{ maintenance.get_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ maintenance.description }}</td>
+                                    <td>{{ maintenance.period_days }} jours</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="editMaintenance({{ maintenance.id }})">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    onclick="deleteMaintenance({{ maintenance.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Side Panel -->
+<div class="side-panel" id="maintenancePanel">
+    <div class="side-panel-header">
+        <h3 id="panelTitle">Ajouter une maintenance</h3>
+        <button type="button" class="btn-close" onclick="hideMaintenancePanel()"></button>
+    </div>
+    <div class="side-panel-body">
+        <form id="maintenanceForm" onsubmit="saveMaintenance(event)">
+            {% csrf_token %}
+            <input type="hidden" id="maintenanceId" name="maintenance_id">
+            <div class="mb-3">
+                <label for="name" class="form-label">Nom</label>
+                <input type="text" class="form-control" id="name" name="name" required autocomplete="off">
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="period_days" class="form-label">Période (jours)</label>
+                <input type="number" class="form-control" id="period_days" name="period_days" min="0">
+            </div>
+            <div class="mb-3">
+                <label for="priority" class="form-label">Priorité</label>
+                <select class="form-select" id="priority" name="priority" required>
+                    <option value="1">Haute</option>
+                    <option value="2">Moyenne</option>
+                    <option value="3">Basse</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="instructions" class="form-label">Instructions</label>
+                <textarea class="form-control" id="instructions" name="instructions" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="required_tools" class="form-label">Outils requis</label>
+                <textarea class="form-control" id="required_tools" name="required_tools" rows="2"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </form>
+    </div>
+</div>
+<div class="side-panel-backdrop" id="backdrop" onclick="hideMaintenancePanel()"></div>
+
+<!-- Modal de duplication -->
+<div class="modal fade" id="duplicateModal" tabindex="-1" role="dialog" aria-labelledby="duplicateModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="duplicateModalLabel">Dupliquer le template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="duplicateForm">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="duplicateName">Nom du nouveau template</label>
+                        <input type="text" class="form-control" id="duplicateName" name="name" required>
+                    </div>
+                </form>
+                <div id="duplicateError" class="alert alert-danger" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="duplicateTemplate()">Dupliquer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.devbridge-autocomplete/1.4.11/jquery.autocomplete.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#name').devbridgeAutocomplete({
+        lookup: function(query, done) {
+            $.ajax({
+                url: '{% url "fabmaintenance:get_maintenance_names" %}',
+                data: {
+                    q: query,
+                    machine_type_id: '{{ template.machine_type.id }}'
+                },
+                dataType: 'json',
+                success: function(data) {
+                    var suggestions = [];
+                    if (Array.isArray(data)) {
+                        suggestions = data.map(function(item) {
+                            return {
+                                value: item.name,
+                                data: item
+                            };
+                        });
+                    }
+                    done({ suggestions: suggestions });
+                }
+            });
+        },
+        minChars: 2,
+        onSelect: function(suggestion) {
+            if (suggestion.data) {
+                $('#description').val(suggestion.data.description || '');
+                $('#period_days').val(suggestion.data.period_days || '');
+                $('#priority').val(suggestion.data.priority || '2');
+                $('#instructions').val(suggestion.data.instructions || '');
+                $('#required_tools').val(suggestion.data.required_tools || '');
+            }
+        },
+        deferRequestBy: 200,
+        showNoSuggestionNotice: true,
+        noSuggestionNotice: 'Aucune maintenance trouvée'
+    });
+});
+
+function showMaintenancePanel() {
+    document.getElementById('maintenancePanel').classList.add('show');
+    document.getElementById('backdrop').classList.add('show');
+    document.getElementById('panelTitle').textContent = 'Ajouter une maintenance';
+    document.getElementById('maintenanceForm').reset();
+    document.getElementById('maintenanceId').value = '';
+}
+
+function hideMaintenancePanel() {
+    document.getElementById('maintenancePanel').classList.remove('show');
+    document.getElementById('backdrop').classList.remove('show');
+}
+
+function editMaintenance(id) {
+    const headers = {
+        'X-CSRFToken': getCookie('csrftoken')
+    };
+    
+    fetch(`{% url 'fabmaintenance:template_maintenance_ajax' template.pk %}?id=${id}`, {
+        method: 'GET',
+        headers: headers,
+        credentials: 'include'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Données reçues:', data);
+            
+            // Afficher le panneau avant de remplir les champs
+            showMaintenancePanel();
+            
+            // Remplir les champs un par un avec vérification
+            const fields = {
+                'maintenance_id': data.id,
+                'name': data.name,
+                'description': data.description,
+                'period_days': data.period_days,
+                'priority': data.priority,
+                'instructions': data.instructions || '',
+                'required_tools': data.required_tools || ''
+            };
+            
+            // Remplir chaque champ et logger le résultat
+            Object.entries(fields).forEach(([fieldName, value]) => {
+                const element = document.querySelector(`[name="${fieldName}"]`);
+                if (element) {
+                    console.log(`Setting ${fieldName} to:`, value);
+                    element.value = value;
+                } else {
+                    console.warn(`Field with name ${fieldName} not found`);
+                }
+            });
+            
+            document.getElementById('panelTitle').textContent = 'Modifier la maintenance';
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Une erreur est survenue lors de la récupération des données de la maintenance.');
+        });
+}
+
+function deleteMaintenance(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette maintenance ?')) {
+        fetch(`{% url 'fabmaintenance:template_maintenance_ajax' template.pk %}?id=${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById(`maintenance-${id}`).remove();
+            }
+        });
+    }
+}
+
+function saveMaintenance(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const csrftoken = getCookie('csrftoken');
+    
+    // Vérifier si la maintenance existe déjà
+    const maintenanceName = formData.get('name');
+    const existingMaintenance = Array.from(document.querySelectorAll('#maintenanceTableBody tr')).find(row => {
+        const name = row.querySelector('td:first-child').textContent.trim();
+        return name === maintenanceName && row.id !== `maintenance-${formData.get('maintenance_id')}`;
+    });
+
+    if (existingMaintenance && !formData.get('maintenance_id')) {
+        alert('Une maintenance avec ce nom existe déjà pour ce template.');
+        return;
+    }
+    
+    // Add required fields for the form
+    formData.append('maintenance_type_choice', 'periodic');
+    formData.append('scheduling_type', 'periodic');
+    formData.append('custom_type_name', '');
+    formData.append('significant', 'true');
+    
+    fetch('{% url 'fabmaintenance:template_maintenance_ajax' template.pk %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        credentials: 'include'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const maintenanceId = formData.get('maintenance_id');
+        const row = maintenanceId ? 
+            document.getElementById(`maintenance-${maintenanceId}`) : 
+            document.createElement('tr');
+            
+        if (!maintenanceId) {
+            row.id = `maintenance-${data.id}`;
+            row.classList.add('maintenance-row');
+        }
+        
+        const priorityClass = data.priority === 1 ? 'bg-danger' : data.priority === 2 ? 'bg-warning' : 'bg-info';
+        
+        row.innerHTML = 
+            `<td>
+                ${data.name}
+                <span class="badge ${priorityClass} ms-2">${data.priority_display}</span>
+            </td>
+            <td>${data.description}</td>
+            <td>${data.period_days} jours</td>
+            <td>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editMaintenance(${data.id})"><i class="fas fa-edit"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteMaintenance(${data.id})"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>`;
+        
+        if (!maintenanceId) {
+            document.getElementById('maintenanceTableBody').appendChild(row);
+        }
+        
+        hideMaintenancePanel();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Une erreur est survenue lors de l\'enregistrement de la maintenance.');
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showDuplicateModal() {
+    // Pré-remplir le nom avec "(copie)"
+    document.getElementById('duplicateName').value = '{{ template.name }} (copie)';
+    const modal = new bootstrap.Modal(document.getElementById('duplicateModal'));
+    modal.show();
+}
+
+function duplicateTemplate() {
+    const form = document.getElementById('duplicateForm');
+    const errorDiv = document.getElementById('duplicateError');
+    const modalElement = document.getElementById('duplicateModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
+    
+    // Réinitialiser les messages d'erreur
+    errorDiv.style.display = 'none';
+    
+    // Créer un FormData avec le formulaire
+    const formData = new FormData(form);
+    
+    // Envoyer la requête de duplication
+    fetch('{% url "fabmaintenance:machine_template_duplicate" template.pk %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            modal.hide();
+            // Attendre que la modal soit fermée avant de rediriger
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                window.location.href = data.redirect_url;
+            }, { once: true });
+        } else {
+            errorDiv.textContent = data.error;
+            errorDiv.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        errorDiv.textContent = 'Une erreur est survenue lors de la duplication.';
+        errorDiv.style.display = 'block';
+    });
+}
+</script>
+{% endblock %} 
