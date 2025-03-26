@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Gestion des FabLabs - FabBoard{% endblock %}
+
+{% block extra_css %}
+<style>
+.fablab-card {
+    transition: all 0.3s ease;
+}
+
+.fablab-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.user-count {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.modal-confirm {
+    max-width: 400px;
+}
+
+.fablab-actions .btn {
+    transition: all 0.2s ease;
+}
+
+.fablab-actions .btn:hover {
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Gestion des FabLabs</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createFabLabModal">
+            <i class="fas fa-plus me-2"></i>Nouveau FabLab
+        </button>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+        {% for fablab in admin_fablabs %}
+        <div class="col">
+            <div class="card fablab-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title mb-1">{{ fablab.name }}</h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <button class="dropdown-item" onclick="editFabLab('{{ fablab.id }}', '{{ fablab.name }}', '{{ fablab.address|default:'' }}')">
+                                        <i class="fas fa-edit me-2"></i>Modifier
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="duplicateFabLab('{{ fablab.id }}', '{{ fablab.name }}')">
+                                        <i class="fas fa-copy me-2"></i>Dupliquer
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger" onclick="deleteFabLab('{{ fablab.id }}', '{{ fablab.name }}')">
+                                        <i class="fas fa-trash me-2"></i>Supprimer
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {% if fablab.address %}
+                    <p class="card-text text-muted mb-3">
+                        <i class="fas fa-map-marker-alt me-2"></i>{{ fablab.address }}
+                    </p>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mb-3">
+                        <span class="badge bg-primary user-count">
+                            <i class="fas fa-users me-1"></i>{{ fablab.users.count }} utilisateurs
+                        </span>
+                        <span class="badge bg-warning user-count">
+                            <i class="fas fa-user-shield me-1"></i>{{ fablab.admins.count }} admins
+                        </span>
+                    </div>
+
+                    <div class="fablab-actions">
+                        <a href="{% url 'fabusers:fablab_users' %}?fablab={{ fablab.id }}" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="fas fa-users me-1"></i>Gérer les utilisateurs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>Aucun FabLab trouvé.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal Création FabLab -->
+<div class="modal fade" id="createFabLabModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nouveau FabLab</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createFabLabForm">
+                    <div class="mb-3">
+                        <label for="newFabLabName" class="form-label">Nom</label>
+                        <input type="text" class="form-control" id="newFabLabName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newFabLabAddress" class="form-label">Adresse</label>
+                        <input type="text" class="form-control" id="newFabLabAddress">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="createFabLab()">Créer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Édition FabLab -->
+<div class="modal fade" id="editFabLabModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifier le FabLab</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editFabLabForm">
+                    <input type="hidden" id="editFabLabId">
+                    <div class="mb-3">
+                        <label for="editFabLabName" class="form-label">Nom</label>
+                        <input type="text" class="form-control" id="editFabLabName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editFabLabAddress" class="form-label">Adresse</label>
+                        <input type="text" class="form-control" id="editFabLabAddress">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="updateFabLab()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Duplication FabLab -->
+<div class="modal fade" id="duplicateFabLabModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Dupliquer le FabLab</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="duplicateFabLabForm">
+                    <input type="hidden" id="duplicateFabLabId">
+                    <div class="mb-3">
+                        <label for="duplicateFabLabName" class="form-label">Nom du nouveau FabLab</label>
+                        <input type="text" class="form-control" id="duplicateFabLabName" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="duplicateMachines" checked>
+                        <label class="form-check-label" for="duplicateMachines">
+                            Dupliquer également les machines
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="confirmDuplicateFabLab()">Dupliquer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmation Suppression -->
+<div class="modal fade" id="deleteFabLabModal" tabindex="-1">
+    <div class="modal-dialog modal-confirm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le FabLab <strong id="deleteFabLabName"></strong> ?</p>
+                <p class="text-danger mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Cette action est irréversible.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteFabLab()">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let csrfToken = '{{ csrf_token }}';
+let currentFabLabId = null;
+
+function showError(message) {
+    // TODO: Implémenter un système de notification plus élégant
+    alert(message);
+}
+
+function createFabLab() {
+    const name = document.getElementById('newFabLabName').value;
+    const address = document.getElementById('newFabLabAddress').value;
+
+    fetch('{% url "fabusers:fablab_admin" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ name, address })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showError(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        showError('Une erreur est survenue');
+        console.error('Error:', error);
+    });
+}
+
+function editFabLab(id, name, address) {
+    currentFabLabId = id;
+    document.getElementById('editFabLabId').value = id;
+    document.getElementById('editFabLabName').value = name;
+    document.getElementById('editFabLabAddress').value = address || '';
+    new bootstrap.Modal(document.getElementById('editFabLabModal')).show();
+}
+
+function updateFabLab() {
+    const name = document.getElementById('editFabLabName').value;
+    const address = document.getElementById('editFabLabAddress').value;
+
+    fetch(`/users/fablab/${currentFabLabId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ name, address })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showError(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        showError('Une erreur est survenue');
+        console.error('Error:', error);
+    });
+}
+
+function deleteFabLab(id, name) {
+    currentFabLabId = id;
+    document.getElementById('deleteFabLabName').textContent = name;
+    new bootstrap.Modal(document.getElementById('deleteFabLabModal')).show();
+}
+
+function confirmDeleteFabLab() {
+    fetch(`/users/fablab/${currentFabLabId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showError(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        showError('Une erreur est survenue');
+        console.error('Error:', error);
+    });
+}
+
+function duplicateFabLab(id, name) {
+    currentFabLabId = id;
+    document.getElementById('duplicateFabLabId').value = id;
+    document.getElementById('duplicateFabLabName').value = `${name} (copie)`;
+    new bootstrap.Modal(document.getElementById('duplicateFabLabModal')).show();
+}
+
+function confirmDuplicateFabLab() {
+    const name = document.getElementById('duplicateFabLabName').value;
+    const duplicateMachines = document.getElementById('duplicateMachines').checked;
+
+    fetch(`/users/fablab/${currentFabLabId}/duplicate/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            name,
+            duplicate_machines: duplicateMachines
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showError(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        showError('Une erreur est survenue');
+        console.error('Error:', error);
+    });
+}
+</script>
+{% endblock %} 

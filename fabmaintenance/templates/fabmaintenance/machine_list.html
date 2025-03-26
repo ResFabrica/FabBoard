@@ -4,94 +4,96 @@
 {% block title %}Machines - FabBoard{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Machines</h1>
-    <a href="{% url 'fabmaintenance:machine_add' %}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Ajouter une machine
-    </a>
-</div>
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Machines</h1>
+        <a href="{% url 'fabmaintenance:machine_catalogue' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Ajouter une machine
+        </a>
+    </div>
 
-{% if not fablabs_with_machines %}
-<div class="alert alert-info">
-    <h4 class="alert-heading">Bienvenue sur FabBoard !</h4>
-    <p>Pour commencer à utiliser l'application :</p>
-    <ol>
-        <li>Cliquez sur le bouton "Ajouter une machine" ci-dessus</li>
-        <li>Remplissez les informations de votre première machine</li>
-        <li>Vous pourrez ensuite gérer les maintenances de cette machine</li>
-    </ol>
-</div>
-{% endif %}
+    {% if not fablabs_with_machines %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">Bienvenue sur FabBoard !</h4>
+        <p>Pour commencer à utiliser l'application :</p>
+        <ol>
+            <li>Cliquez sur le bouton "Ajouter une machine" ci-dessus</li>
+            <li>Remplissez les informations de votre première machine</li>
+            <li>Vous pourrez ensuite gérer les maintenances de cette machine</li>
+        </ol>
+    </div>
+    {% endif %}
 
-{% for fablab_data in fablabs_with_machines %}
-<div class="mb-5">
-    <h2 class="h3 mb-4">
-        <i class="fas fa-building text-primary"></i> {{ fablab_data.fablab.name }}
-    </h2>
-    
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        {% for machine in fablab_data.machines %}
-        <div class="col">
-            <div class="card h-100 maintenance-card shadow-sm">
-                {% if machine.image %}
-                <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}">
-                    <img src="{{ machine.image.url }}" 
-                         class="card-img-top" 
-                         alt="{{ machine.name }}"
-                         style="height: 200px; object-fit: cover; cursor: pointer;"
-                         title="Voir les détails de {{ machine.name }}">
-                </a>
-                {% else %}
-                <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}" 
-                   class="bg-light d-flex align-items-center justify-content-center" 
-                   style="height: 200px; text-decoration: none;">
-                    <i class="fas fa-cog fa-4x text-muted"></i>
-                </a>
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title">{{ machine.name }}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">{{ machine.machine_type.name }}</h6>
-                    
-                    {% if machine.upcoming_maintenance %}
-                    <div class="alert alert-warning">
-                        <h6 class="mb-2">Maintenances à venir (7 jours):</h6>
-                        <ul class="list-unstyled mb-0">
-                            {% for maintenance in machine.upcoming_maintenance %}
-                            <li>
-                                <i class="fas fa-tools"></i>
-                                {{ maintenance.maintenance_type.name }} - 
-                                {{ maintenance.scheduled_date|date:"d/m/Y" }}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+    {% for fablab_data in fablabs_with_machines %}
+    <div class="mb-5">
+        <h2 class="h3 mb-4">
+            <i class="fas fa-building text-primary"></i> {{ fablab_data.fablab.name }}
+        </h2>
+        
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for machine in fablab_data.machines %}
+            <div class="col">
+                <div class="card h-100 maintenance-card shadow-sm">
+                    {% if machine.image %}
+                    <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}">
+                        <img src="{{ machine.image.url }}" 
+                             class="card-img-top" 
+                             alt="{{ machine.name }}"
+                             style="height: 200px; object-fit: cover; cursor: pointer;"
+                             title="Voir les détails de {{ machine.name }}">
+                    </a>
+                    {% else %}
+                    <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}" 
+                       class="bg-light d-flex align-items-center justify-content-center" 
+                       style="height: 200px; text-decoration: none;">
+                        <i class="fas fa-cog fa-4x text-muted"></i>
+                    </a>
                     {% endif %}
-                </div>
-                <div class="card-footer bg-transparent border-top-0">
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}" class="btn btn-outline-primary">
-                            <i class="fas fa-eye"></i> Détails
-                        </a>
-                        <div class="btn-group">
-                            <a href="{% url 'fabmaintenance:machine_edit' machine.pk %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-edit"></i>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ machine.name }}</h5>
+                        <h6 class="card-subtitle mb-2 text-muted">{{ machine.machine_type.name }}</h6>
+                        
+                        {% if machine.upcoming_maintenance %}
+                        <div class="alert alert-warning">
+                            <h6 class="mb-2">Maintenances à venir (7 jours):</h6>
+                            <ul class="list-unstyled mb-0">
+                                {% for maintenance in machine.upcoming_maintenance %}
+                                <li>
+                                    <i class="fas fa-tools"></i>
+                                    {{ maintenance.maintenance_type.name }} - 
+                                    {{ maintenance.scheduled_date|date:"d/m/Y" }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}" class="btn btn-outline-primary">
+                                <i class="fas fa-eye"></i> Détails
                             </a>
-                            <a href="{% url 'fabmaintenance:machine_delete' machine.pk %}" 
-                               class="btn btn-outline-danger"
-                               onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette machine ?')">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                            <div class="btn-group">
+                                <a href="{% url 'fabmaintenance:machine_edit' machine.pk %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'fabmaintenance:machine_delete' machine.pk %}" 
+                                   class="btn btn-outline-danger"
+                                   onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette machine ?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
+    {% empty %}
+    <div class="alert alert-info">
+        Aucune machine n'est disponible pour le moment.
+    </div>
+    {% endfor %}
 </div>
-{% empty %}
-<div class="alert alert-info">
-    Aucune machine n'est disponible pour le moment.
-</div>
-{% endfor %}
 {% endblock %} 

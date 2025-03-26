@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Catalogue de machines - FabBoard{% endblock %}
+
+{% block extra_css %}
+<style>
+.template-card {
+    transition: all 0.3s ease;
+}
+
+.template-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.template-image {
+    height: 200px;
+    object-fit: cover;
+}
+
+.filter-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.manufacturer-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Catalogue de machines</h1>
+        {% if user.is_superuser %}
+        <a href="{% url 'fabmaintenance:machine_template_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Ajouter une machine au catalogue
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Filtres -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Rechercher..." value="{{ search|default:'' }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="type" class="form-select">
+                    <option value="">Tous les types</option>
+                    {% for type in machine_types %}
+                    <option value="{{ type.id }}" {% if type.id|stringformat:"s" == current_type %}selected{% endif %}>
+                        {{ type.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="manufacturer" class="form-select">
+                    <option value="">Tous les fabricants</option>
+                    {% for manufacturer in manufacturers %}
+                    <option value="{{ manufacturer }}" {% if manufacturer == current_manufacturer %}selected{% endif %}>
+                        {{ manufacturer }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-2"></i>Filtrer
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Liste des templates -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+        {% for template in templates %}
+        <div class="col">
+            <div class="card h-100 template-card">
+                {% if template.image %}
+                <img src="{{ template.image.url }}" 
+                     class="card-img-top template-image" 
+                     alt="{{ template.name }}">
+                {% else %}
+                <div class="bg-light d-flex align-items-center justify-content-center template-image">
+                    <i class="fas fa-cog fa-3x text-muted"></i>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ template.name }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        {{ template.manufacturer }} {{ template.model }}
+                    </h6>
+                    <p class="card-text">{{ template.description|truncatewords:30 }}</p>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-primary me-2">
+                            <i class="fas fa-cog me-1"></i>{{ template.machine_type }}
+                        </span>
+                        <span class="badge bg-info">
+                            <i class="fas fa-tools me-1"></i>{{ template.maintenance_templates.count }} maintenances
+                        </span>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top-0">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'fabmaintenance:machine_template_detail' template.pk %}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-info-circle me-2"></i>Détails
+                        </a>
+                        <a href="{% url 'fabmaintenance:create_machine_from_template' template.pk %}" 
+                           class="btn btn-success">
+                            <i class="fas fa-plus me-2"></i>Ajouter cette machine à mon FabLab
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>Aucun template trouvé.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

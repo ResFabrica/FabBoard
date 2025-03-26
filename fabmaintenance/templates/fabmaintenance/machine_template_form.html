@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} - FabBoard{% endblock %}
+
+{% block extra_css %}
+<style>
+.maintenance-row {
+    transition: all 0.2s ease;
+}
+.maintenance-row:hover {
+    background-color: #f8f9fa;
+}
+.priority-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+}
+.priority-1 { background-color: #6c757d; }
+.priority-2 { background-color: #17a2b8; }
+.priority-3 { background-color: #ffc107; }
+.priority-4 { background-color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">{{ title }}</h1>
+        <a href="{% if template %}{% url 'fabmaintenance:machine_template_detail' template.pk %}{% else %}{% url 'fabmaintenance:machine_catalogue' %}{% endif %}" 
+           class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour
+        </a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Informations de base -->
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">Informations du template</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">Nom</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.name.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.manufacturer.id_for_label }}" class="form-label">Fabricant</label>
+                                {{ form.manufacturer }}
+                                {% if form.manufacturer.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.manufacturer.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.model.id_for_label }}" class="form-label">Modèle</label>
+                                {{ form.model }}
+                                {% if form.model.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.model.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.machine_type.id_for_label }}" class="form-label">Type de machine</label>
+                            {{ form.machine_type }}
+                            {% if form.machine_type.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.machine_type.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.documentation_url.id_for_label }}" class="form-label">URL de la documentation</label>
+                            {{ form.documentation_url }}
+                            {% if form.documentation_url.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.documentation_url.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.image.id_for_label }}" class="form-label">Image</label>
+                            {{ form.image }}
+                            {% if form.image.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.image.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                            {% if template and template.image %}
+                            <div class="mt-2">
+                                <img src="{{ template.image.url }}" alt="{{ template.name }}" class="img-thumbnail" style="max-height: 200px;">
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenances -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Maintenances recommandées</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addMaintenanceRow()">
+                            <i class="fas fa-plus me-1"></i>Ajouter
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table" id="maintenanceTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30%">Nom</th>
+                                        <th style="width: 40%">Description</th>
+                                        <th style="width: 15%">Période</th>
+                                        <th style="width: 15%">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if template %}
+                                        {% for maintenance in template.maintenance_templates.all %}
+                                        <tr class="maintenance-row">
+                                            <td>
+                                                <input type="text" name="maintenance_name[]" class="form-control form-control-sm" value="{{ maintenance.name }}" required>
+                                            </td>
+                                            <td>
+                                                <input type="text" name="maintenance_description[]" class="form-control form-control-sm" value="{{ maintenance.description }}" placeholder="Description courte">
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="maintenance_period[]" class="form-control" value="{{ maintenance.period_days }}" required>
+                                                    <span class="input-group-text">j</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMaintenanceRow(this)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-end mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>{{ submit_text }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addMaintenanceRow() {
+    const tbody = document.querySelector('#maintenanceTable tbody');
+    const newRow = document.createElement('tr');
+    newRow.className = 'maintenance-row';
+    newRow.innerHTML = `
+        <td>
+            <input type="text" name="maintenance_name[]" class="form-control form-control-sm" required>
+        </td>
+        <td>
+            <input type="text" name="maintenance_description[]" class="form-control form-control-sm" placeholder="Description courte">
+        </td>
+        <td>
+            <div class="input-group input-group-sm">
+                <input type="number" name="maintenance_period[]" class="form-control" required>
+                <span class="input-group-text">j</span>
+            </div>
+        </td>
+        <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMaintenanceRow(this)">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(newRow);
+}
+
+function removeMaintenanceRow(button) {
+    button.closest('tr').remove();
+}
+</script>
+{% endblock %} 

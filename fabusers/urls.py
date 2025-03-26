@@ -7,6 +7,7 @@ app_name = 'fabusers'
 urlpatterns = [
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('register/', views.register, name='register'),
+    path('register/invitation/<str:token>/', views.register_with_invitation, name='register_with_invitation'),
     path('login/', views.user_login, name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     path('profile/', views.profile, name='profile'),

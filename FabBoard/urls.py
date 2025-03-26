@@ -23,7 +23,7 @@ from django.views.generic import RedirectView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', RedirectView.as_view(url='/maintenance/machines/', permanent=False), name='home'),
-    path('maintenance/machines/', include('fabmaintenance.urls')),
+    path('maintenance/', include('fabmaintenance.urls')),
     path('projects/', include('fabprojects.urls')),
     path('users/', include('fabusers.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

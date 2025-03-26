@@ -1,12 +1,16 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Machine, Maintenance, MaintenanceType, FabLab
+from .models import (
+    Machine, Maintenance, MaintenanceType, FabLab,
+    MachineTemplate, MaintenanceTemplate, MachineType
+)
 from django.utils import timezone
 import random
 
 class MachineForm(forms.ModelForm):
-    machine_type = forms.ChoiceField(
+    machine_type = forms.ModelChoiceField(
+        queryset=MachineType.objects.all(),
         label='Type de machine',
         required=True,
         widget=forms.Select(attrs={
@@ -15,73 +19,36 @@ class MachineForm(forms.ModelForm):
         })
     )
 
-    new_machine_type = forms.CharField(
-        label='Nouveau type de machine',
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Entrez le nom du nouveau type de machine'
-        })
-    )
-
     class Meta:
         model = Machine
-        fields = ['name', 'machine_type', 'new_machine_type', 'fablab', 'serial_number', 'image']
+        fields = ['name', 'machine_type', 'fablab', 'serial_number', 'image']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'fablab': forms.Select(attrs={'class': 'form-control'}),
             'serial_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'image': forms.FileInput(attrs={'class': 'form-control'}),
+            'image': forms.FileInput(attrs={'class': 'form-control'})
         }
 
-    def __init__(self, user=None, *args, **kwargs):
+    def __init__(self, user=None, from_template=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Ajouter l'option "Autre..." dans les choix de type de machine
-        from .models import MachineType
-        choices = [(None, '---------')]
-        choices.extend([(str(mt.id), str(mt)) for mt in MachineType.objects.all()])
-        choices.append(('new', 'Autre...'))
-        self.fields['machine_type'].choices = choices
-
-        # Toujours filtrer les FabLabs par ceux de l'utilisateur
+        
         if user:
             self.fields['fablab'].queryset = user.fablabs.all()
-            # Toujours sélectionner le premier FabLab par défaut
-            if user.fablabs.exists():
+            if user.fablabs.count() == 1:
                 self.fields['fablab'].initial = user.fablabs.first()
-                # Si l'utilisateur n'a qu'un seul FabLab, rendre le champ en lecture seule
-                if user.fablabs.count() == 1:
-                    self.fields['fablab'].widget.attrs['readonly'] = True
-        else:
-            # Définir le premier fablab comme valeur par défaut
-            from .models import FabLab
-            first_fablab = FabLab.objects.first()
-            if first_fablab:
-                self.fields['fablab'].initial = first_fablab
+
+        if from_template:
+            self.fields['machine_type'].widget = forms.HiddenInput()
 
     def clean(self):
         cleaned_data = super().clean()
-        machine_type = cleaned_data.get('machine_type')
-        new_machine_type = cleaned_data.get('new_machine_type')
+        name = cleaned_data.get('name')
+        fablab = cleaned_data.get('fablab')
 
-        if machine_type == 'new':
-            if not new_machine_type:
-                self.add_error('new_machine_type', 'Ce champ est requis pour un nouveau type de machine')
-            else:
-                # Créer le nouveau type de machine
-                from .models import MachineType
-                machine_type_obj, created = MachineType.objects.get_or_create(
-                    name=new_machine_type,
-                    defaults={'description': f'Type de machine créé le {timezone.now().strftime("%d/%m/%Y")}'}
-                )
-                cleaned_data['machine_type'] = machine_type_obj
-        else:
-            # Convertir l'ID en objet MachineType
-            from .models import MachineType
-            try:
-                cleaned_data['machine_type'] = MachineType.objects.get(pk=int(machine_type))
-            except (ValueError, MachineType.DoesNotExist):
-                self.add_error('machine_type', 'Type de machine invalide')
+        if name and fablab:
+            # Vérifier si une machine avec le même nom existe déjà dans ce FabLab
+            if Machine.objects.filter(name=name, fablab=fablab).exclude(pk=self.instance.pk if self.instance else None).exists():
+                self.add_error('name', 'Une machine avec ce nom existe déjà dans ce FabLab.')
 
         return cleaned_data
 
@@ -120,7 +87,7 @@ class MaintenanceForm(forms.ModelForm):
     period_days = forms.IntegerField(
         label='Période (en jours)',
         required=False,
-        min_value=1,
+        min_value=0,
         widget=forms.NumberInput(attrs={
             'class': 'form-control'
         })
@@ -309,3 +276,38 @@ class UserRegistrationForm(UserCreationForm):
         if commit:
             user.save()
         return user
+
+class MachineTemplateForm(forms.ModelForm):
+    class Meta:
+        model = MachineTemplate
+        fields = ['name', 'machine_type', 'manufacturer', 'model', 'description', 'documentation_url', 'image']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'machine_type': forms.Select(attrs={'class': 'form-control'}),
+            'manufacturer': forms.TextInput(attrs={'class': 'form-control'}),
+            'model': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'documentation_url': forms.URLInput(attrs={'class': 'form-control'}),
+            'image': forms.FileInput(attrs={'class': 'form-control'})
+        }
+
+class MaintenanceTemplateForm(forms.ModelForm):
+    estimated_duration = forms.DurationField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'HH:MM:SS'
+        }),
+        help_text='Format: HH:MM:SS'
+    )
+
+    class Meta:
+        model = MaintenanceTemplate
+        fields = ['name', 'description', 'period_days', 'estimated_duration', 'priority', 'instructions', 'required_tools']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'period_days': forms.NumberInput(attrs={'class': 'form-control'}),
+            'priority': forms.Select(attrs={'class': 'form-control'}),
+            'instructions': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'required_tools': forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+        }

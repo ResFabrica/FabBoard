@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MachineType, Machine, MaintenanceType, Maintenance
+from .models import MachineType, Machine, MaintenanceType, Maintenance, MachineTemplate, MaintenanceTemplate
 from fabusers.models import FabLab
 
 class MachineInline(admin.TabularInline):
@@ -37,7 +37,25 @@ class MaintenanceAdmin(admin.ModelAdmin):
         return f"{obj.machine.name} ({obj.machine.fablab.name})"
     get_machine_with_fablab.short_description = 'Machine (FabLab)'
 
+class MaintenanceTemplateInline(admin.TabularInline):
+    model = MaintenanceTemplate
+    extra = 1
+    fields = ('name', 'period_days', 'priority', 'estimated_duration')
+
+class MachineTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'manufacturer', 'model', 'machine_type')
+    list_filter = ('machine_type', 'manufacturer')
+    search_fields = ('name', 'manufacturer', 'model')
+    inlines = [MaintenanceTemplateInline]
+
+class MaintenanceTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'machine_template', 'period_days', 'priority', 'estimated_duration')
+    list_filter = ('machine_template', 'priority')
+    search_fields = ('name', 'machine_template__name')
+
 admin.site.register(MachineType, MachineTypeAdmin)
 admin.site.register(Machine, MachineAdmin)
 admin.site.register(MaintenanceType, MaintenanceTypeAdmin)
 admin.site.register(Maintenance, MaintenanceAdmin)
+admin.site.register(MachineTemplate, MachineTemplateAdmin)
+admin.site.register(MaintenanceTemplate, MaintenanceTemplateAdmin)

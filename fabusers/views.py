@@ -1,7 +1,7 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from .forms import UserRegistrationForm
 from .models import FabLab
@@ -11,6 +11,7 @@ from django.db.models import Q, Count
 import json
 import csv
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
+from django.views.decorators.csrf import csrf_exempt
 
 User = get_user_model()
 
@@ -315,10 +316,46 @@ def update_avatar_color(request):
     return JsonResponse({'status': 'error', 'message': 'Méthode non autorisée'}, status=405)
 
 @login_required
+@csrf_exempt
 def fablab_admin(request):
     """Vue pour gérer les FabLabs."""
     # FabLabs où l'utilisateur est admin
     admin_fablabs = FabLab.objects.filter(admins=request.user).prefetch_related('users', 'admins')
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            name = data.get('name')
+            address = data.get('address')
+            
+            if not name:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Le nom du FabLab est requis'
+                }, status=400)
+            
+            # Vérifier si le nom existe déjà
+            if FabLab.objects.filter(name=name).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Un FabLab avec ce nom existe déjà'
+                }, status=400)
+            
+            # Créer le nouveau FabLab
+            fablab = FabLab.objects.create(
+                name=name,
+                address=address
+            )
+            
+            # Ajouter l'utilisateur comme admin
+            fablab.admins.add(request.user)
+            
+            return JsonResponse({'success': True})
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Données invalides'
+            }, status=400)
     
     return render(request, 'fabusers/fablab_admin.html', {
         'admin_fablabs': admin_fablabs,
@@ -445,3 +482,33 @@ def admin_dashboard(request):
     }
     
     return render(request, 'fabusers/admin_dashboard.html', context)
+
+def register_with_invitation(request, token):
+    """Vue pour l'inscription avec un token d'invitation."""
+    try:
+        fablab = FabLab.objects.get(invitation_token=token)
+    except FabLab.DoesNotExist:
+        messages.error(request, "Token d'invitation invalide ou expiré.")
+        return redirect('home')
+
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Ajouter l'utilisateur au FabLab
+            fablab.users.add(user)
+            # Définir ce FabLab comme FabLab principal de l'utilisateur
+            user.profile.fablab = fablab
+            user.profile.save()
+            
+            login(request, user)
+            messages.success(request, f'Bienvenue dans {fablab.name} !')
+            return redirect('home')
+    else:
+        form = UserRegistrationForm()
+
+    return render(request, 'fabusers/register.html', {
+        'form': form,
+        'fablab': fablab,
+        'invitation': True
+    })
