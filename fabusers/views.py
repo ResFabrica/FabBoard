@@ -431,15 +431,30 @@ def duplicate_fablab(request, fablab_id):
         
         # Dupliquer les machines si demandé
         if data.get('duplicate_machines', False):
-            from fabmaintenance.models import Machine
+            from fabmaintenance.models import Machine, Maintenance
             for machine in original_fablab.machine_set.all():
-                Machine.objects.create(
+                # Créer une copie de la machine
+                new_machine = Machine.objects.create(
                     name=machine.name,
                     machine_type=machine.machine_type,
+                    template=machine.template,
                     fablab=new_fablab,
                     serial_number=f"{machine.serial_number} (copie)" if machine.serial_number else None,
                     image=machine.image if machine.image else None
                 )
+                
+                # Copier les maintenances périodiques
+                for maintenance in machine.maintenance_set.filter(scheduling_type='periodic'):
+                    Maintenance.objects.create(
+                        machine=new_machine,
+                        maintenance_type=maintenance.maintenance_type,
+                        scheduled_date=maintenance.scheduled_date,
+                        scheduling_type='periodic',
+                        period_days=maintenance.period_days,
+                        custom_type_name=maintenance.custom_type_name,
+                        significant=maintenance.significant,
+                        notes=maintenance.notes
+                    )
         
         return JsonResponse({'success': True})
     except FabLab.DoesNotExist:
