@@ -180,173 +180,66 @@ class MultipleFileInput(Input):
         return file
 
 class TaskForm(forms.ModelForm):
-    deadline = forms.DateField(
+    """Formulaire pour créer/modifier une tâche."""
+    tags = forms.CharField(
         required=False,
-        widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'form-control'
-        })
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Séparer les tags par des virgules'
+        }),
+        help_text='Séparer les tags par des virgules'
     )
-
-    tags = AjaxModelMultipleChoiceField(
-        queryset=Tag.objects.none(),
-        required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
-    )
-
-    files = forms.Field(
-        widget=MultipleFileInput(),
-        required=False,
-        label='Fichiers',
-        help_text='Sélectionnez un ou plusieurs fichiers'
-    )
-
+    
     class Meta:
         model = Task
-        fields = ['title', 'description', 'assigned_users', 'deadline', 'tags']
+        fields = ['title', 'description', 'deadline', 'assigned_users', 'tags']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'deadline': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'assigned_users': forms.SelectMultiple(attrs={'class': 'form-control select2'}),
-            'deadline': forms.DateInput(attrs={'type': 'date'}),
-            'tags': forms.SelectMultiple(attrs={'class': 'form-control select2'})
         }
-        labels = {
-            'assigned_users': 'Utilisateurs assignés',
-        }
-
-    def __init__(self, *args, **kwargs):
-        section = kwargs.pop('section', None)
-        super().__init__(*args, **kwargs)
+    
+    def __init__(self, *args, section=None, fablab=None, **kwargs):
         self.section = section
+        self.fablab = fablab or (section.view.fablab if section else None)
+        super().__init__(*args, **kwargs)
         
-        if section:
-            self.fields['assigned_users'].queryset = section.view.fablab.users.all()
-            self.fields['tags'].queryset = Tag.objects.filter(fablab=section.view.fablab)
-            
-            # Initialiser les utilisateurs avec leur nom complet
-            if self.instance.pk:
-                self.fields['assigned_users'].initial = self.instance.assigned_users.all()
-                self.fields['assigned_users'].widget.choices = [
-                    (user.id, user.get_full_name() or user.username)
-                    for user in section.view.fablab.users.all()
-                ]
-            
-            # Initialiser les tags avec leurs IDs
-            if self.instance.pk:
-                self.initial['tags'] = [tag.id for tag in self.instance.tags.all()]
-                
-            # Ajouter les champs personnalisés
-            for custom_field in section.view.custom_fields.all():
-                field_name = f'custom_field_{custom_field.id}'
-                field_value = None
-                
-                if self.instance.pk:
-                    try:
-                        field_value = self.instance.custom_field_values.get(field=custom_field).value
-                    except CustomFieldValue.DoesNotExist:
-                        pass
-                
-                if custom_field.field_type == 'boolean':
-                    self.fields[field_name] = forms.BooleanField(
-                        required=False,
-                        initial=field_value == 'true' if field_value is not None else False,
-                        label=custom_field.name
-                    )
-                elif custom_field.field_type == 'number':
-                    self.fields[field_name] = forms.FloatField(
-                        required=False,
-                        initial=field_value,
-                        label=custom_field.name
-                    )
-                elif custom_field.field_type == 'date':
-                    self.fields[field_name] = forms.DateField(
-                        required=False,
-                        initial=field_value,
-                        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-                        label=custom_field.name
-                    )
-                elif custom_field.field_type == 'choice':
-                    choices = [(c.strip(), c.strip()) for c in custom_field.choices.split('\n') if c.strip()]
-                    choices.insert(0, ('', '---------'))
-                    self.fields[field_name] = forms.ChoiceField(
-                        choices=choices,
-                        required=False,
-                        initial=field_value,
-                        label=custom_field.name
-                    )
-                else:  # text
-                    self.fields[field_name] = forms.CharField(
-                        required=False,
-                        initial=field_value,
-                        label=custom_field.name
-                    )
-
-    def clean_files(self):
-        logger.info("\n=== TaskForm.clean_files ===")
-        files = self.files.getlist('files') if self.files else []
-        logger.info(f"Files from request: {files}")
-        logger.info(f"Files type: {type(files)}")
-        logger.info(f"Number of files: {len(files)}")
-        
-        if not files:
-            logger.info("Aucun fichier trouvé")
-            return []
-            
-        for file in files:
-            logger.info(f"File details - Name: {file.name}, Size: {file.size}, Type: {file.content_type}")
-            logger.info(f"File object type: {type(file)}")
-            logger.info(f"File object attributes: {dir(file)}")
-        
-        return files
-
+        # Filtrer les utilisateurs assignables par FabLab
+        if self.fablab:
+            self.fields['assigned_users'].queryset = self.fablab.users.all()
+    
     def clean(self):
-        logger.info("\n=== TaskForm.clean ===")
         cleaned_data = super().clean()
-        logger.info(f"Initial cleaned data: {cleaned_data}")
+        tags_str = cleaned_data.get('tags', '')
         
-        # Récupérer les fichiers depuis clean_files
-        if 'files' not in cleaned_data:
-            cleaned_data['files'] = self.clean_files()
-            logger.info(f"Files ajoutés à cleaned_data: {cleaned_data['files']}")
+        if tags_str:
+            tag_names = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+            tag_objects = []
+            
+            for tag_name in tag_names:
+                # Vérifier si le tag existe déjà dans ce FabLab
+                tag, created = Tag.objects.get_or_create(
+                    name=tag_name,
+                    fablab=self.fablab,
+                    defaults={'name': tag_name}
+                )
+                tag_objects.append(tag)
+            
+            cleaned_data['tags'] = tag_objects
         
-        logger.info(f"Final cleaned data: {cleaned_data}")
         return cleaned_data
-
+    
     def save(self, commit=True):
         task = super().save(commit=False)
         if self.section:
             task.section = self.section
-            task.view = self.section.view
-        
+        if self.fablab:
+            task.fablab = self.fablab
         if commit:
             task.save()
-            # Gérer les relations many-to-many
-            self.save_m2m()
-            
-            # Sauvegarder les fichiers
-            files = self.cleaned_data.get('files', [])
-            for file in files:
-                if file:
-                    TaskFile.objects.create(
-                        task=task,
-                        file=file,
-                        filename=file.name,
-                        file_type=file.content_type,
-                        file_size=file.size
-                    )
-            
-            # Sauvegarder les valeurs des champs personnalisés
-            for field_name, value in self.cleaned_data.items():
-                if field_name.startswith('custom_field_'):
-                    field_id = int(field_name.split('_')[-1])
-                    custom_field = CustomField.objects.get(id=field_id)
-                    CustomFieldValue.objects.update_or_create(
-                        task=task,
-                        field=custom_field,
-                        defaults={'value': str(value) if value is not None else ''}
-                    )
-        
+            if 'tags' in self.cleaned_data:
+                task.tags.set(self.cleaned_data['tags'])
         return task
 
 class SubTaskForm(forms.ModelForm):

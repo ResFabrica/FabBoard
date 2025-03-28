@@ -136,10 +136,13 @@
                             <table class="table" id="maintenanceTable">
                                 <thead>
                                     <tr>
-                                        <th style="width: 30%">Nom</th>
-                                        <th style="width: 40%">Description</th>
-                                        <th style="width: 15%">Période</th>
-                                        <th style="width: 15%">Actions</th>
+                                        <th style="width: 20%">Nom</th>
+                                        <th style="width: 20%">Description</th>
+                                        <th style="width: 10%">Période</th>
+                                        <th style="width: 10%">Priorité</th>
+                                        <th style="width: 20%">Instructions</th>
+                                        <th style="width: 10%">Outils</th>
+                                        <th style="width: 10%">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -157,6 +160,20 @@
                                                     <input type="number" name="maintenance_period[]" class="form-control" value="{{ maintenance.period_days }}" required>
                                                     <span class="input-group-text">j</span>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <select name="maintenance_priority[]" class="form-select form-select-sm">
+                                                    <option value="1" {% if maintenance.priority == 1 %}selected{% endif %}>Basse</option>
+                                                    <option value="2" {% if maintenance.priority == 2 %}selected{% endif %}>Moyenne</option>
+                                                    <option value="3" {% if maintenance.priority == 3 %}selected{% endif %}>Haute</option>
+                                                    <option value="4" {% if maintenance.priority == 4 %}selected{% endif %}>Critique</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <textarea name="maintenance_instructions[]" class="form-control form-control-sm" rows="2" placeholder="Instructions détaillées">{{ maintenance.instructions }}</textarea>
+                                            </td>
+                                            <td>
+                                                <textarea name="maintenance_tools[]" class="form-control form-control-sm" rows="2" placeholder="Outils nécessaires">{{ maintenance.required_tools }}</textarea>
                                             </td>
                                             <td class="text-end">
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMaintenanceRow(this)">
@@ -201,6 +218,20 @@ function addMaintenanceRow() {
                 <input type="number" name="maintenance_period[]" class="form-control" required>
                 <span class="input-group-text">j</span>
             </div>
+        </td>
+        <td>
+            <select name="maintenance_priority[]" class="form-select form-select-sm">
+                <option value="1">Basse</option>
+                <option value="2" selected>Moyenne</option>
+                <option value="3">Haute</option>
+                <option value="4">Critique</option>
+            </select>
+        </td>
+        <td>
+            <textarea name="maintenance_instructions[]" class="form-control form-control-sm" rows="2" placeholder="Instructions détaillées"></textarea>
+        </td>
+        <td>
+            <textarea name="maintenance_tools[]" class="form-control form-control-sm" rows="2" placeholder="Outils nécessaires"></textarea>
         </td>
         <td class="text-end">
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMaintenanceRow(this)">

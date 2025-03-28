@@ -20,29 +20,30 @@ class MachineForm(forms.ModelForm):
         })
     )
 
-    class Meta:
-        model = Machine
-        fields = ['name', 'machine_type', 'fablab', 'serial_number', 'image']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'fablab': forms.Select(attrs={'class': 'form-control'}),
-            'serial_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'image': forms.FileInput(attrs={'class': 'form-control'})
-        }
+    fablab = forms.ModelChoiceField(
+        queryset=FabLab.objects.all(),
+        label="FabLab",
+        required=True
+    )
 
     def __init__(self, user, *args, **kwargs):
+        self.user = user
+        # Retirer from_template des kwargs avant d'appeler super()
+        from_template = kwargs.pop('from_template', False)
         super().__init__(*args, **kwargs)
+        
+        # Filtrer les FabLabs en fonction des permissions de l'utilisateur
+        if not user.is_superuser:
+            self.fields['fablab'].queryset = user.fablabs.all()
+        
+        # Si on crée une machine à partir d'un template, on ne montre pas le champ template
+        if from_template:
+            self.fields.pop('template', None)
         
         # Si c'est une édition et que l'utilisateur est super user, on pré-sélectionne le FabLab de la machine
         if self.instance.pk and user.is_superuser:
             self.fields['fablab'].initial = self.instance.fablab
         
-        # Filtrer les FabLabs disponibles
-        if user.is_superuser:
-            self.fields['fablab'].queryset = FabLab.objects.all()
-        else:
-            self.fields['fablab'].queryset = user.fablabs.all()
-
         if user.fablabs.count() == 1:
             self.fields['fablab'].initial = user.fablabs.first()
 
@@ -57,6 +58,16 @@ class MachineForm(forms.ModelForm):
                 self.add_error('name', 'Une machine avec ce nom existe déjà dans ce FabLab.')
 
         return cleaned_data
+
+    class Meta:
+        model = Machine
+        fields = ['name', 'machine_type', 'fablab', 'serial_number', 'image']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'fablab': forms.Select(attrs={'class': 'form-control'}),
+            'serial_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'image': forms.FileInput(attrs={'class': 'form-control'})
+        }
 
 class MaintenanceForm(forms.ModelForm):
     maintenance_type_choice = forms.ChoiceField(

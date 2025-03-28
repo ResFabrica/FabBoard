@@ -518,6 +518,9 @@ def machine_template_edit(request, pk):
             maintenance_names = request.POST.getlist('maintenance_name[]')
             maintenance_descriptions = request.POST.getlist('maintenance_description[]')
             maintenance_periods = request.POST.getlist('maintenance_period[]')
+            maintenance_priorities = request.POST.getlist('maintenance_priority[]')
+            maintenance_instructions = request.POST.getlist('maintenance_instructions[]')
+            maintenance_tools = request.POST.getlist('maintenance_tools[]')
             
             # Créer les nouvelles maintenances
             for i in range(len(maintenance_names)):
@@ -528,8 +531,9 @@ def machine_template_edit(request, pk):
                         description=maintenance_descriptions[i] if i < len(maintenance_descriptions) else '',
                         period_days=int(maintenance_periods[i]) if i < len(maintenance_periods) else 30,
                         estimated_duration=timezone.timedelta(minutes=30),  # Valeur par défaut
-                        priority=2,  # Priorité moyenne par défaut
-                        instructions=''  # Instructions optionnelles
+                        priority=int(maintenance_priorities[i]) if i < len(maintenance_priorities) else 2,
+                        instructions=maintenance_instructions[i] if i < len(maintenance_instructions) else '',
+                        required_tools=maintenance_tools[i] if i < len(maintenance_tools) else ''
                     )
             
             messages.success(request, f'Le template {template.name} a été modifié avec succès.')
@@ -540,7 +544,7 @@ def machine_template_edit(request, pk):
     return render(request, 'fabmaintenance/machine_template_form.html', {
         'form': form,
         'template': template,
-        'title': f'Modifier {template.name}',
+        'title': 'Modifier le template',
         'submit_text': 'Enregistrer'
     })
 
@@ -864,3 +868,37 @@ def machine_template_duplicate(request, pk):
         })
     
     return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
+
+@login_required
+def maintenance_create(request, machine_id):
+    """Vue pour créer une nouvelle maintenance."""
+    machine = get_object_or_404(Machine, id=machine_id)
+    fablab = machine.fablab
+    
+    # Vérifier les permissions
+    if not request.user.is_superuser and not request.user.fablabs.filter(id=fablab.id).exists():
+        messages.error(request, "Vous n'avez pas les permissions nécessaires pour créer une maintenance sur cette machine.")
+        return redirect('fabmaintenance:machine_list')
+    
+    if request.method == 'POST':
+        form = MaintenanceForm(request.POST, request.FILES)
+        if form.is_valid():
+            maintenance = form.save(commit=False)
+            maintenance.machine = machine
+            maintenance.created_by = request.user
+            maintenance.save()
+            
+            # Gérer les tags
+            if 'tags' in form.cleaned_data:
+                maintenance.tags.set(form.cleaned_data['tags'])
+            
+            messages.success(request, 'Maintenance créée avec succès.')
+            return redirect('fabmaintenance:machine_detail', pk=machine.pk)
+    else:
+        form = MaintenanceForm()
+    
+    return render(request, 'fabmaintenance/maintenance_form.html', {
+        'form': form,
+        'machine': machine,
+        'fablab': fablab
+    })

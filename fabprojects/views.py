@@ -295,7 +295,7 @@ def task_create(request, section_id):
             logger.info(f"File '{key}': name={file.name}, size={file.size}, content_type={file.content_type}")
         logger.info(f"POST data: {request.POST}")
         
-        form = TaskForm(request.POST, request.FILES, section=section)
+        form = TaskForm(request.POST, request.FILES, section=section, fablab=section.view.fablab)
         if form.is_valid():
             logger.info("Form is valid")
             logger.info(f"Cleaned data: {form.cleaned_data}")
@@ -326,7 +326,7 @@ def task_create(request, section_id):
                     'errors': form.errors
                 })
     else:
-        form = TaskForm(section=section)
+        form = TaskForm(section=section, fablab=section.view.fablab)
     
     context = {
         'form': form,

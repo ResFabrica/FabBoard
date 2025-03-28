@@ -6,13 +6,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         # Création des types de machines
-        printer_3d = MachineType.objects.create(
-            name='Imprimante 3D',
-            description='Imprimante 3D FDM'
+        printer_3d, _ = MachineType.objects.get_or_create(
+            name='Imprimante 3D FDM',
+            defaults={
+                'description': 'Imprimante 3D FDM'
+            }
         )
-        laser_cutter = MachineType.objects.create(
+        laser_cutter, _ = MachineType.objects.get_or_create(
             name='Découpe Laser',
-            description='Machine de découpe laser'
+            defaults={
+                'description': 'Machine de découpe laser'
+            }
         )
 
         # Maintenances pour imprimante 3D
@@ -25,11 +29,13 @@ class Command(BaseCommand):
         ]
 
         for name, desc, freq in printer_maintenances:
-            MaintenanceType.objects.create(
+            MaintenanceType.objects.get_or_create(
                 name=name,
-                description=desc,
                 machine_type=printer_3d,
-                period_days=freq
+                defaults={
+                    'description': desc,
+                    'period_days': freq
+                }
             )
 
         # Maintenances pour découpe laser
@@ -42,11 +48,13 @@ class Command(BaseCommand):
         ]
 
         for name, desc, freq in laser_maintenances:
-            MaintenanceType.objects.create(
+            MaintenanceType.objects.get_or_create(
                 name=name,
-                description=desc,
                 machine_type=laser_cutter,
-                period_days=freq
+                defaults={
+                    'description': desc,
+                    'period_days': freq
+                }
             )
 
         self.stdout.write(self.style.SUCCESS('Types de machines et maintenances créés avec succès')) 
