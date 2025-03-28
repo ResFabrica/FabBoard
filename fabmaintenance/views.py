@@ -22,8 +22,20 @@ from django.urls import reverse
 @login_required
 def machine_list(request):
     """Vue principale listant les machines par FabLab."""
-    # Toujours filtrer par les FabLabs de l'utilisateur, même pour les administrateurs
-    fablabs = request.user.fablabs.all()
+    # Récupérer le FabLab sélectionné depuis l'URL
+    selected_fablab_id = request.GET.get('fablab')
+    
+    # Si un FabLab est sélectionné et que l'utilisateur est super admin, utiliser ce FabLab
+    if selected_fablab_id and request.user.is_superuser:
+        try:
+            selected_fablab = FabLab.objects.get(id=selected_fablab_id)
+            fablabs = [selected_fablab]
+        except FabLab.DoesNotExist:
+            messages.error(request, "FabLab non trouvé.")
+            return redirect('fabmaintenance:machine_list')
+    else:
+        # Sinon, filtrer par les FabLabs de l'utilisateur
+        fablabs = request.user.fablabs.all()
     
     fablabs_with_machines = []
     for fablab in fablabs:
@@ -42,7 +54,8 @@ def machine_list(request):
     
     return render(request, 'fabmaintenance/machine_list.html', {
         'fablabs_with_machines': fablabs_with_machines,
-        'MEDIA_URL': settings.MEDIA_URL
+        'MEDIA_URL': settings.MEDIA_URL,
+        'selected_fablab': selected_fablab if selected_fablab_id else None
     })
 
 @login_required
@@ -74,26 +87,33 @@ def machine_detail(request, pk):
 
 @login_required
 def machine_edit(request, pk):
+    """Vue pour éditer une machine."""
     machine = get_object_or_404(Machine, pk=pk)
-    if not request.user.has_perm('fabmaintenance.change_machine', machine):
-        raise PermissionDenied
     
-    if request.method == "POST":
-        form = MachineForm(user=request.user, data=request.POST, files=request.FILES, instance=machine)
+    # Vérifier les permissions
+    if not request.user.is_superuser and not request.user in machine.fablab.admins.all():
+        messages.error(request, "Vous n'avez pas les permissions nécessaires pour éditer cette machine.")
+        return redirect('fabmaintenance:machine_list')
+    
+    if request.method == 'POST':
+        form = MachineForm(request.user, request.POST, request.FILES, instance=machine)
         if form.is_valid():
-            machine = form.save()
-            messages.success(request, f'La machine {machine.name} a été modifiée avec succès.')
-            return redirect('fabmaintenance:machine_detail', pk=machine.pk)
+            # Si l'utilisateur est super user, on préserve le FabLab de la machine
+            if request.user.is_superuser:
+                machine = form.save(commit=False)
+                machine.fablab = machine.fablab  # Garder le FabLab original
+                machine.save()
+            else:
+                form.save()
+            messages.success(request, 'Machine mise à jour avec succès.')
+            return redirect('fabmaintenance:machine_list')
     else:
-        form = MachineForm(instance=machine, user=request.user)
-    
-    maintenance_types = MaintenanceType.objects.all()
+        form = MachineForm(request.user, instance=machine)
     
     return render(request, 'fabmaintenance/machine_form.html', {
         'form': form,
         'machine': machine,
-        'title': f'Modifier {machine.name}',
-        'maintenance_types': maintenance_types,
+        'title': 'Modifier la machine'
     })
 
 @login_required
@@ -267,6 +287,14 @@ def register(request):
         form = UserRegistrationForm(request.POST)
         form.request = request  # Passer la requête au formulaire
         if form.is_valid():
+            # Vérifier si un FabLab avec le même nom existe déjà
+            fablab_name = form.cleaned_data['fablab_name']
+            if FabLab.objects.filter(name=fablab_name).exists():
+                messages.error(request, f'Un FabLab avec le nom "{fablab_name}" existe déjà. '
+                                     f'Si vous êtes membre de ce FabLab, veuillez contacter l\'administrateur '
+                                     f'du FabLab ou l\'équipe ResFabrica à contact@resfabrica.fr pour être ajouté.')
+                return render(request, 'fabmaintenance/register.html', {'form': form})
+            
             user = form.save(commit=False)
             user.accepts_contact = form.cleaned_data['accept_contact']
             user.save()

@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from .forms import UserRegistrationForm
 from .models import FabLab
+from fabmaintenance.models import Machine
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count
@@ -56,6 +57,10 @@ def terms(request):
 @login_required
 def fablab_users(request):
     """Vue pour afficher et gérer les utilisateurs par FabLab."""
+    # Récupérer le FabLab sélectionné depuis l'URL
+    selected_fablab_id = request.GET.get('fablab')
+    expand = request.GET.get('expand', 'true') == 'true'
+    
     # FabLabs où l'utilisateur est admin
     admin_fablabs = FabLab.objects.filter(admins=request.user).prefetch_related('users', 'admins', 'users__profile')
     
@@ -64,10 +69,8 @@ def fablab_users(request):
     if request.user.is_superuser:
         other_fablabs = FabLab.objects.exclude(admins=request.user).prefetch_related('users', 'admins', 'users__profile')
     
-    # Récupérer le FabLab sélectionné depuis l'URL
-    selected_fablab_id = request.GET.get('fablab')
+    # FabLab sélectionné
     selected_fablab = None
-    
     if selected_fablab_id:
         try:
             # Vérifier si l'utilisateur a accès à ce FabLab
@@ -82,7 +85,8 @@ def fablab_users(request):
         'admin_fablabs': admin_fablabs,
         'other_fablabs': other_fablabs,
         'is_superuser': request.user.is_superuser,
-        'selected_fablab': selected_fablab
+        'selected_fablab': selected_fablab,
+        'expand': expand
     })
 
 @login_required
@@ -133,23 +137,56 @@ def search_users(request):
     return JsonResponse({'users': users_data})
 
 @login_required
+@csrf_exempt
 def add_user_to_fablab(request, fablab_id):
-    """API pour ajouter un utilisateur à un FabLab."""
-    if request.method != 'POST':
-        return JsonResponse({'status': 'error', 'message': 'Méthode non autorisée'}, status=405)
-    
+    """Ajouter un utilisateur à un FabLab."""
     try:
         data = json.loads(request.body)
         user_id = data.get('user_id')
-        fablab = FabLab.objects.get(id=fablab_id)
-        user = User.objects.get(id=user_id)
         
+        if not user_id:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'ID utilisateur manquant'
+            }, status=400)
+        
+        # Récupérer le FabLab
+        try:
+            fablab = FabLab.objects.get(id=fablab_id)
+        except FabLab.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'FabLab non trouvé'
+            }, status=404)
+        
+        # Vérifier les permissions
+        if not request.user.is_superuser and not request.user in fablab.admins.all():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Permission refusée'
+            }, status=403)
+        
+        # Récupérer l'utilisateur
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Utilisateur non trouvé'
+            }, status=404)
+        
+        # Ajouter l'utilisateur au FabLab
         fablab.users.add(user)
-        return JsonResponse({'status': 'success'})
-    except (FabLab.DoesNotExist, User.DoesNotExist):
-        return JsonResponse({'status': 'error', 'message': 'FabLab ou utilisateur non trouvé'}, status=404)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Utilisateur ajouté au FabLab {fablab.name}'
+        })
     except json.JSONDecodeError:
-        return JsonResponse({'status': 'error', 'message': 'Données invalides'}, status=400)
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Données invalides'
+        }, status=400)
 
 @login_required
 def remove_user_from_fablab(request, fablab_id, user_id):
@@ -322,6 +359,20 @@ def fablab_admin(request):
     # FabLabs où l'utilisateur est admin
     admin_fablabs = FabLab.objects.filter(admins=request.user).prefetch_related('users', 'admins')
     
+    # Si l'utilisateur est super admin, ajouter les autres FabLabs
+    other_fablabs = []
+    if request.user.is_superuser:
+        other_fablabs = FabLab.objects.exclude(admins=request.user).prefetch_related('users', 'admins')
+    
+    # Enrichir les FabLabs avec les informations sur les machines
+    for fablab in admin_fablabs:
+        fablab.machine_count = Machine.objects.filter(fablab=fablab).count()
+        fablab.machines = Machine.objects.filter(fablab=fablab).select_related('machine_type')[:5]  # Limiter à 5 machines pour l'aperçu
+    
+    for fablab in other_fablabs:
+        fablab.machine_count = Machine.objects.filter(fablab=fablab).count()
+        fablab.machines = Machine.objects.filter(fablab=fablab).select_related('machine_type')[:5]
+    
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -359,6 +410,8 @@ def fablab_admin(request):
     
     return render(request, 'fabusers/fablab_admin.html', {
         'admin_fablabs': admin_fablabs,
+        'other_fablabs': other_fablabs,
+        'is_superuser': request.user.is_superuser,
     })
 
 @login_required
@@ -431,7 +484,6 @@ def duplicate_fablab(request, fablab_id):
         
         # Dupliquer les machines si demandé
         if data.get('duplicate_machines', False):
-            from fabmaintenance.models import Machine, Maintenance
             for machine in original_fablab.machine_set.all():
                 # Créer une copie de la machine
                 new_machine = Machine.objects.create(
@@ -442,19 +494,6 @@ def duplicate_fablab(request, fablab_id):
                     serial_number=f"{machine.serial_number} (copie)" if machine.serial_number else None,
                     image=machine.image if machine.image else None
                 )
-                
-                # Copier les maintenances périodiques
-                for maintenance in machine.maintenance_set.filter(scheduling_type='periodic'):
-                    Maintenance.objects.create(
-                        machine=new_machine,
-                        maintenance_type=maintenance.maintenance_type,
-                        scheduled_date=maintenance.scheduled_date,
-                        scheduling_type='periodic',
-                        period_days=maintenance.period_days,
-                        custom_type_name=maintenance.custom_type_name,
-                        significant=maintenance.significant,
-                        notes=maintenance.notes
-                    )
         
         return JsonResponse({'success': True})
     except FabLab.DoesNotExist:

@@ -9,6 +9,7 @@ from django.utils import timezone
 import random
 
 class MachineForm(forms.ModelForm):
+    """Formulaire pour créer/modifier une machine."""
     machine_type = forms.ModelChoiceField(
         queryset=MachineType.objects.all(),
         label='Type de machine',
@@ -29,16 +30,21 @@ class MachineForm(forms.ModelForm):
             'image': forms.FileInput(attrs={'class': 'form-control'})
         }
 
-    def __init__(self, user=None, from_template=False, *args, **kwargs):
+    def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        if user:
+        # Si c'est une édition et que l'utilisateur est super user, on pré-sélectionne le FabLab de la machine
+        if self.instance.pk and user.is_superuser:
+            self.fields['fablab'].initial = self.instance.fablab
+        
+        # Filtrer les FabLabs disponibles
+        if user.is_superuser:
+            self.fields['fablab'].queryset = FabLab.objects.all()
+        else:
             self.fields['fablab'].queryset = user.fablabs.all()
-            if user.fablabs.count() == 1:
-                self.fields['fablab'].initial = user.fablabs.first()
 
-        if from_template:
-            self.fields['machine_type'].widget = forms.HiddenInput()
+        if user.fablabs.count() == 1:
+            self.fields['fablab'].initial = user.fablabs.first()
 
     def clean(self):
         cleaned_data = super().clean()
