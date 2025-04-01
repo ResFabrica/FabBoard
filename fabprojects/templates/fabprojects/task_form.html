@@ -26,7 +26,12 @@
         // Initialiser Select2 pour les utilisateurs assignés
         $('#id_assigned_users').select2({
             theme: 'bootstrap-5',
-            width: '100%'
+            width: '100%',
+            templateSelection: function(data) {
+                // Récupérer le texte complet (nom et prénom) s'il est disponible
+                var text = $(data.element).text() || data.text;
+                return $('<span>' + text + '</span>');
+            }
         });
 
         // Initialiser Select2 pour les tags
@@ -71,14 +76,31 @@
                     return data.text;
                 }
                 
+                // Récupérer le nom et la couleur du tag
+                var text = $(data.element).text() || data.text;
+                var color = data.color || getTagColor(data.id) || "#cccccc";
+                
                 var $container = $(
-                    "<span class='tag-color-dot' style='background-color: " + (data.color || "#cccccc") + "'></span>" +
-                    "<span class='tag-name'>" + data.text + "</span>"
+                    "<span class='tag-color-dot' style='background-color: " + color + "'></span>" +
+                    "<span class='tag-name'>" + text + "</span>"
                 );
                 
                 return $container;
             }
         });
+
+        // Fonction pour récupérer la couleur d'un tag par son ID
+        function getTagColor(tagId) {
+            {% if tags_data_json %}
+            var tagsData = JSON.parse('{{ tags_data_json|escapejs }}');
+            for (var i = 0; i < tagsData.length; i++) {
+                if (tagsData[i].id == tagId) {
+                    return tagsData[i].color;
+                }
+            }
+            {% endif %}
+            return null;
+        }
 
         // Définir l'URL de retour pour le bouton Annuler
         var cancelButton = document.querySelector('a.btn-secondary');

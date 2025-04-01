@@ -38,12 +38,14 @@
                                 <tbody>
                                     {% for task in tasks %}
                                         <tr class="{% if task.is_completed %}table-success{% endif %}">
-                                            <td>
-                                                <div class="form-check">
-                                                    <input type="checkbox" class="form-check-input task-complete-checkbox"
-                                                           id="task-{{ task.id }}" data-task-id="{{ task.id }}"
-                                                           {% if task.is_completed %}checked{% endif %}>
-                                                </div>
+                                            <td class="text-center">
+                                                <span class="task-status-icon" data-task-id="{{ task.id }}" role="button">
+                                                    {% if task.is_completed %}
+                                                        <i class="fas fa-check-circle text-success fa-lg"></i>
+                                                    {% else %}
+                                                        <i class="far fa-circle text-muted fa-lg"></i>
+                                                    {% endif %}
+                                                </span>
                                             </td>
                                             <td>
                                                 <a href="{% url 'fabprojects:task_detail' task.id %}">
@@ -106,4 +108,51 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gestion du clic sur les icônes de statut de tâche
+        document.querySelectorAll('.task-status-icon').forEach(function(icon) {
+            icon.addEventListener('click', function() {
+                const taskId = this.dataset.taskId;
+                
+                // Animation de chargement
+                const iconElement = this.querySelector('i');
+                const originalClass = iconElement.className;
+                iconElement.className = 'fas fa-spinner fa-spin fa-lg';
+                
+                fetch(`{% url 'fabprojects:task_toggle_complete' 0 %}`.replace('0', taskId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Changement de l'icône
+                        if (data.is_completed) {
+                            iconElement.className = 'fas fa-check-circle text-success fa-lg';
+                            icon.closest('tr').classList.add('table-success');
+                        } else {
+                            iconElement.className = 'far fa-circle text-muted fa-lg';
+                            icon.closest('tr').classList.remove('table-success');
+                        }
+                    } else {
+                        // Restaurer l'icône originale en cas d'erreur
+                        iconElement.className = originalClass;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la mise à jour du statut:', error);
+                    // Restaurer l'icône originale en cas d'erreur
+                    iconElement.className = originalClass;
+                });
+            });
+        });
+    });
+</script>
 {% endblock %} 

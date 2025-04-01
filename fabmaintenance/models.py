@@ -189,7 +189,6 @@ class MaintenanceType(models.Model):
     ]
 
     name = models.CharField(max_length=100, verbose_name="Nom")
-    machine_type = models.ForeignKey(MachineType, on_delete=models.CASCADE, verbose_name="Type de machine")
     period_days = models.IntegerField(null=True, blank=True, verbose_name="Périodicité (jours)")
     description = models.TextField(blank=True, null=True, verbose_name="Description")
     is_custom = models.BooleanField(default=False, verbose_name="Personnalisé")
@@ -200,7 +199,7 @@ class MaintenanceType(models.Model):
     updated_at = models.DateTimeField(default=timezone.now, verbose_name="Mis à jour le")
     
     def __str__(self):
-        return f"{self.name} ({self.machine_type.name})"
+        return self.name
 
     def get_priority_display(self):
         return dict(self.PRIORITY_CHOICES).get(self.priority, '')
@@ -231,6 +230,8 @@ class Maintenance(models.Model):
                                       verbose_name="Nom personnalisé")
     significant = models.BooleanField(default=False, verbose_name="Maintenance marquante",
                                     help_text="Indique si cette maintenance est marquante")
+    instructions = models.TextField(blank=True, null=True, verbose_name="Instructions")
+    required_tools = models.TextField(blank=True, null=True, verbose_name="Outils nécessaires")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Créé le")
     updated_at = models.DateTimeField(default=timezone.now, verbose_name="Mis à jour le")
 

@@ -23,8 +23,8 @@ class MachineAdmin(admin.ModelAdmin):
     get_next_maintenance.short_description = 'Prochaine maintenance'
 
 class MaintenanceTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'machine_type', 'period_days', 'is_custom')
-    list_filter = ('machine_type', 'is_custom')
+    list_display = ('name', 'period_days', 'is_custom')
+    list_filter = ('is_custom',)
     search_fields = ('name',)
 
 class MaintenanceAdmin(admin.ModelAdmin):

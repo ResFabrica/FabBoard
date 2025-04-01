@@ -24,18 +24,23 @@ def machine_list(request):
     """Vue principale listant les machines par FabLab."""
     # Récupérer le FabLab sélectionné depuis l'URL
     selected_fablab_id = request.GET.get('fablab')
+    selected_fablab = None
     
-    # Si un FabLab est sélectionné et que l'utilisateur est super admin, utiliser ce FabLab
-    if selected_fablab_id and request.user.is_superuser:
+    # Si un FabLab est sélectionné, vérifier que l'utilisateur y a accès
+    if selected_fablab_id:
         try:
             selected_fablab = FabLab.objects.get(id=selected_fablab_id)
-            fablabs = [selected_fablab]
+            if not request.user.is_superuser and selected_fablab not in request.user.fablabs.all():
+                messages.error(request, "Vous n'avez pas accès à ce FabLab.")
+                return redirect('fabmaintenance:machine_list')
         except FabLab.DoesNotExist:
             messages.error(request, "FabLab non trouvé.")
             return redirect('fabmaintenance:machine_list')
-    else:
-        # Sinon, filtrer par les FabLabs de l'utilisateur
-        fablabs = request.user.fablabs.all()
+    
+    # Filtrer par les FabLabs de l'utilisateur
+    fablabs = request.user.fablabs.all()
+    if selected_fablab and request.user.is_superuser:
+        fablabs = [selected_fablab]
     
     fablabs_with_machines = []
     for fablab in fablabs:
@@ -55,7 +60,7 @@ def machine_list(request):
     return render(request, 'fabmaintenance/machine_list.html', {
         'fablabs_with_machines': fablabs_with_machines,
         'MEDIA_URL': settings.MEDIA_URL,
-        'selected_fablab': selected_fablab if selected_fablab_id else None
+        'selected_fablab': selected_fablab
     })
 
 @login_required
@@ -91,7 +96,7 @@ def machine_edit(request, pk):
     machine = get_object_or_404(Machine, pk=pk)
     
     # Vérifier les permissions
-    if not request.user.is_superuser and not request.user in machine.fablab.admins.all():
+    if not request.user.is_superuser and machine.fablab not in request.user.fablabs.all():
         messages.error(request, "Vous n'avez pas les permissions nécessaires pour éditer cette machine.")
         return redirect('fabmaintenance:machine_list')
     
@@ -168,18 +173,23 @@ def add_maintenance(request, machine_pk):
         if machine.template:
             # Créer des types de maintenance basés sur les maintenances du template
             for mt in machine.template.maintenance_templates.all():
-                maintenance_type, created = MaintenanceType.objects.get_or_create(
+                # Utiliser filter().first() au lieu de get_or_create pour éviter les doublons
+                maintenance_type = MaintenanceType.objects.filter(
                     name=mt.name,
-                    machine_type=machine.machine_type,
-                    defaults={
-                        'description': mt.description,
-                        'period_days': mt.period_days,
-                        'is_custom': False,
-                        'priority': mt.priority,
-                        'instructions': mt.instructions,
-                        'required_tools': mt.required_tools
-                    }
-                )
+                    is_custom=False
+                ).first()
+                
+                if not maintenance_type:
+                    maintenance_type = MaintenanceType.objects.create(
+                        name=mt.name,
+                        description=mt.description,
+                        period_days=mt.period_days,
+                        is_custom=False,
+                        priority=mt.priority,
+                        instructions=mt.instructions,
+                        required_tools=mt.required_tools
+                    )
+                
                 maintenance_types.append(maintenance_type)
         
         form.fields['maintenance_type_choice'].choices = [
@@ -375,79 +385,95 @@ def machine_template_detail(request, pk):
 @login_required
 def create_machine_from_template(request, pk):
     template = get_object_or_404(MachineTemplate, pk=pk)
-    maintenances = template.maintenance_templates.all()
-
+    
     if request.method == 'POST':
-        form = MachineForm(request.user, from_template=True, data=request.POST, files=request.FILES)
+        selected_maintenances = request.POST.getlist('maintenances')
+        
+        if not selected_maintenances:
+            messages.error(request, 'Veuillez sélectionner au moins une maintenance.')
+            return redirect('fabmaintenance:machine_template_detail', pk=pk)
+        
         try:
-            if form.is_valid():
-                machine = form.save(commit=False)
-                machine.template = template
-                machine.machine_type = template.machine_type
-
-                # Copier l'image du template si aucune nouvelle image n'est fournie
-                if not machine.image and template.image:
-                    from django.core.files import File
-                    from tempfile import NamedTemporaryFile
-                    import os
-                    
-                    temp_image = NamedTemporaryFile(delete=True)
-                    temp_image.write(template.image.read())
-                    temp_image.flush()
-                    
-                    filename = os.path.basename(template.image.name)
-                    machine.image.save(filename, File(temp_image))
-
-                machine.save()
-
-                # Créer les maintenances sélectionnées
-                selected_maintenances = request.POST.getlist('maintenances')
-                for maintenance_id in selected_maintenances:
-                    maintenance_template = MaintenanceTemplate.objects.get(pk=maintenance_id)
-                    
-                    # Créer le type de maintenance s'il n'existe pas
-                    maintenance_type, created = MaintenanceType.objects.get_or_create(
+            # Récupérer le FabLab de l'utilisateur
+            user_fablab = request.user.fablabs.first()
+            if not user_fablab:
+                messages.error(request, "Vous n'avez pas de FabLab associé à votre compte.")
+                return redirect('fabmaintenance:machine_template_detail', pk=pk)
+            
+            # Créer la machine
+            machine = Machine.objects.create(
+                name=request.POST.get('name'),
+                machine_type=template.machine_type,
+                fablab=user_fablab,
+                serial_number=request.POST.get('serial_number'),
+                template=template  # Lier la machine au template
+            )
+            
+            # Copier l'image du template si elle existe
+            if template.image:
+                from django.core.files import File
+                from tempfile import NamedTemporaryFile
+                import os
+                
+                temp_image = NamedTemporaryFile(delete=True)
+                temp_image.write(template.image.read())
+                temp_image.flush()
+                
+                filename = os.path.basename(template.image.name)
+                machine.image.save(filename, File(temp_image))
+            
+            # Créer les maintenances
+            for maintenance_id in selected_maintenances:
+                maintenance_template = MaintenanceTemplate.objects.get(pk=maintenance_id)
+                
+                # Créer le type de maintenance s'il n'existe pas
+                maintenance_type = MaintenanceType.objects.filter(
+                    name=maintenance_template.name,
+                    is_custom=False
+                ).first()
+                
+                if not maintenance_type:
+                    maintenance_type = MaintenanceType.objects.create(
                         name=maintenance_template.name,
-                        machine_type=template.machine_type,
-                        defaults={
-                            'description': maintenance_template.description,
-                            'period_days': maintenance_template.period_days,
-                            'instructions': maintenance_template.instructions,
-                            'required_tools': maintenance_template.required_tools
-                        }
+                        description=maintenance_template.description,
+                        period_days=maintenance_template.period_days,
+                        is_custom=False,
+                        priority=maintenance_template.priority,
+                        instructions=maintenance_template.instructions,
+                        required_tools=maintenance_template.required_tools
                     )
-
-                    # Si le type de maintenance existe déjà, mettre à jour les instructions et outils si nécessaire
-                    if not created and (not maintenance_type.instructions or not maintenance_type.required_tools):
+                else:
+                    # Mettre à jour les instructions et outils si nécessaire
+                    if not maintenance_type.instructions or not maintenance_type.required_tools:
                         maintenance_type.instructions = maintenance_template.instructions
                         maintenance_type.required_tools = maintenance_template.required_tools
                         maintenance_type.save()
 
-                    # Calculer la date prévue
-                    if maintenance_template.period_days is not None:
-                        scheduled_date = timezone.now() + timezone.timedelta(days=maintenance_template.period_days)
-                        scheduling_type = 'periodic'
-                    else:
-                        scheduled_date = timezone.now()
-                        scheduling_type = 'scheduled'
+                # Calculer la date prévue
+                if maintenance_template.period_days is not None:
+                    scheduled_date = timezone.now() + timezone.timedelta(days=maintenance_template.period_days)
+                    scheduling_type = 'periodic'
+                else:
+                    scheduled_date = timezone.now()
+                    scheduling_type = 'scheduled'
 
-                    # Créer la maintenance
-                    Maintenance.objects.create(
-                        machine=machine,
-                        maintenance_type=maintenance_type,
-                        scheduled_date=scheduled_date,
-                        period_days=maintenance_template.period_days,
-                        scheduling_type=scheduling_type
-                    )
-
-                messages.success(request, f'La machine {machine.name} a été créée avec succès.')
-                return redirect('fabmaintenance:machine_detail', pk=machine.pk)
-            else:
-                for field, errors in form.errors.items():
-                    for error in errors:
-                        messages.error(request, f'{error}')
-        except IntegrityError:
-            messages.error(request, f'Une machine avec ce nom existe déjà dans ce FabLab.')
+                # Créer la maintenance
+                maintenance = Maintenance.objects.create(
+                    machine=machine,
+                    maintenance_type=maintenance_type,
+                    scheduled_date=scheduled_date,
+                    scheduling_type=scheduling_type,
+                    period_days=maintenance_template.period_days,
+                    instructions=maintenance_template.instructions,
+                    required_tools=maintenance_template.required_tools
+                )
+            
+            messages.success(request, 'Machine créée avec succès.')
+            return redirect('fabmaintenance:machine_detail', pk=machine.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Erreur lors de la création de la machine : {str(e)}')
+            return redirect('fabmaintenance:machine_template_detail', pk=pk)
     else:
         form = MachineForm(request.user, from_template=True, initial={
             'machine_type': template.machine_type.id
@@ -456,7 +482,7 @@ def create_machine_from_template(request, pk):
     return render(request, 'fabmaintenance/create_machine_from_template.html', {
         'form': form,
         'template': template,
-        'maintenances': maintenances
+        'maintenances': template.maintenance_templates.all()
     })
 
 def is_superuser(user):
@@ -715,64 +741,176 @@ def template_maintenance_ajax(request, template_pk):
 
 @login_required
 @permission_required('fabmaintenance.change_machine')
+@csrf_exempt
 def maintenance_ajax(request, machine_pk):
-    """Vue pour gérer les maintenances via AJAX."""
-    machine = get_object_or_404(Machine, pk=machine_pk)
-    
-    if request.method == "POST":
-        maintenance_id = request.POST.get('maintenance_id')
-        if maintenance_id:
-            # Modification d'une maintenance existante
-            maintenance = get_object_or_404(Maintenance, pk=maintenance_id, machine=machine)
-            form = MaintenanceForm(machine=machine, data=request.POST, instance=maintenance)
-        else:
-            # Création d'une nouvelle maintenance
-            form = MaintenanceForm(machine=machine, data=request.POST)
+    try:
+        machine = get_object_or_404(Machine, pk=machine_pk)
         
-        if form.is_valid():
-            maintenance = form.save(commit=False)
-            maintenance.machine = machine
-            maintenance.save()
-            return JsonResponse({
-                'success': True,
-                'id': maintenance.id,
-                'name': maintenance.maintenance_type.name,
-                'description': maintenance.maintenance_type.description or '',
-                'period_days': maintenance.period_days,
-                'priority': maintenance.maintenance_type.priority,
-                'priority_display': maintenance.maintenance_type.get_priority_display(),
-                'scheduled_date': maintenance.scheduled_date.strftime('%d/%m/%Y'),
-            })
-        return JsonResponse({'success': False, 'error': form.errors})
-    
-    elif request.method == "GET":
-        maintenance_id = request.GET.get('id')
-        if maintenance_id:
-            maintenance = get_object_or_404(Maintenance, pk=maintenance_id, machine=machine)
-            return JsonResponse({
-                'id': maintenance.id,
-                'name': maintenance.maintenance_type.name,
-                'description': maintenance.maintenance_type.description or '',
-                'period_days': maintenance.period_days,
-                'priority': maintenance.maintenance_type.priority,
-                'priority_display': maintenance.maintenance_type.get_priority_display(),
-                'scheduled_date': maintenance.scheduled_date.strftime('%Y-%m-%d'),
-                'notes': maintenance.notes or '',
-                'scheduling_type': maintenance.scheduling_type,
-                'custom_type_name': maintenance.custom_type_name or '',
-                'maintenance_type_choice': str(maintenance.maintenance_type.id),
-            })
-        return JsonResponse({'success': False, 'error': 'ID de maintenance requis'})
-    
-    elif request.method == "DELETE":
-        maintenance_id = request.GET.get('id')
-        if maintenance_id:
-            maintenance = get_object_or_404(Maintenance, pk=maintenance_id, machine=machine)
-            maintenance.delete()
-            return JsonResponse({'success': True})
-        return JsonResponse({'success': False, 'error': 'ID de maintenance requis'})
-    
-    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
+        if request.method == 'GET':
+            maintenance_id = request.GET.get('id')
+            if maintenance_id:
+                try:
+                    maintenance = get_object_or_404(Maintenance, pk=maintenance_id, machine=machine)
+                    
+                    response_data = {
+                        'success': True,
+                        'id': maintenance.id,
+                        'maintenance_type': {
+                            'id': maintenance.maintenance_type_id,
+                            'name': maintenance.maintenance_type.name,
+                            'description': maintenance.maintenance_type.description or '',
+                            'instructions': maintenance.maintenance_type.instructions or '',
+                            'required_tools': maintenance.maintenance_type.required_tools or ''
+                        },
+                        'scheduling_type': maintenance.scheduling_type,
+                        'period_days': maintenance.period_days,
+                        'description': maintenance.maintenance_type.description or '',
+                        'scheduled_date': maintenance.scheduled_date.strftime('%Y-%m-%d') if maintenance.scheduled_date else None,
+                        'instructions': maintenance.instructions or maintenance.maintenance_type.instructions or '',
+                        'required_tools': maintenance.required_tools or maintenance.maintenance_type.required_tools or ''
+                    }
+                    return JsonResponse(response_data)
+                except Exception as e:
+                    return JsonResponse({
+                        'success': False,
+                        'error': str(e)
+                    }, status=400)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': "ID de maintenance non fourni"
+                }, status=400)
+        
+        elif request.method == 'POST':
+            maintenance_id = request.POST.get('maintenance_id')
+            maintenance_type_choice = request.POST.get('maintenance_type_choice')
+            custom_type_name = request.POST.get('custom_type_name')
+            scheduling_type = request.POST.get('scheduling_type')
+            scheduled_date = request.POST.get('scheduled_date')
+            period_days = request.POST.get('period_days')
+            instructions = request.POST.get('instructions')
+            required_tools = request.POST.get('required_tools')
+            description = request.POST.get('description')
+            
+            # Convertir la date string en objet date
+            from datetime import datetime
+            if scheduled_date:
+                try:
+                    scheduled_date = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                except ValueError:
+                    return JsonResponse({
+                        'success': False,
+                        'error': "Format de date invalide. Utilisez le format YYYY-MM-DD."
+                    }, status=400)
+            
+            try:
+                if maintenance_id:
+                    maintenance = get_object_or_404(Maintenance, pk=maintenance_id, machine=machine)
+                    
+                    if maintenance_type_choice == 'other':
+                        # Mettre à jour le type de maintenance existant
+                        maintenance.maintenance_type.name = custom_type_name
+                        maintenance.maintenance_type.description = description
+                        maintenance.maintenance_type.save()
+                    
+                    maintenance.scheduling_type = scheduling_type
+                    maintenance.scheduled_date = scheduled_date
+                    maintenance.period_days = period_days if scheduling_type == 'periodic' else None
+                    maintenance.instructions = instructions
+                    maintenance.required_tools = required_tools
+                    maintenance.save()
+                    
+                else:
+                    if maintenance_type_choice == 'other':
+                        maintenance_type = MaintenanceType.objects.create(
+                            name=custom_type_name,
+                            description=description,
+                            is_custom=True,
+                            priority=2  # Priorité moyenne par défaut
+                        )
+                    else:
+                        return JsonResponse({
+                            'success': False,
+                            'error': "Le type de maintenance est requis."
+                        }, status=400)
+                    
+                    maintenance = Maintenance.objects.create(
+                        machine=machine,
+                        maintenance_type=maintenance_type,
+                        scheduling_type=scheduling_type,
+                        scheduled_date=scheduled_date,
+                        period_days=period_days if scheduling_type == 'periodic' else None,
+                        instructions=instructions,
+                        required_tools=required_tools
+                    )
+                
+                response_data = {
+                    'success': True,
+                    'id': maintenance.id,
+                    'maintenance_type': {
+                        'id': maintenance.maintenance_type_id,
+                        'name': maintenance.maintenance_type.name,
+                        'description': maintenance.maintenance_type.description or '',
+                        'instructions': maintenance.maintenance_type.instructions or '',
+                        'required_tools': maintenance.maintenance_type.required_tools or ''
+                    },
+                    'scheduling_type': maintenance.scheduling_type,
+                    'period_days': maintenance.period_days,
+                    'description': maintenance.maintenance_type.description or '',
+                    'scheduled_date': maintenance.scheduled_date.strftime('%Y-%m-%d') if maintenance.scheduled_date else None,
+                    'instructions': maintenance.instructions or maintenance.maintenance_type.instructions or '',
+                    'required_tools': maintenance.required_tools or maintenance.maintenance_type.required_tools or ''
+                }
+                return JsonResponse(response_data)
+                
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': str(e)
+                }, status=400)
+        
+        elif request.method == 'DELETE':
+            maintenance_id = request.GET.get('id')
+            if maintenance_id:
+                try:
+                    maintenance = get_object_or_404(Maintenance, pk=maintenance_id, machine=machine)
+                    
+                    # Si c'est une maintenance périodique, supprimer toutes les maintenances futures de la même série
+                    if maintenance.scheduling_type == 'periodic':
+                        future_maintenances = Maintenance.objects.filter(
+                            machine=machine,
+                            maintenance_type=maintenance.maintenance_type,
+                            scheduling_type='periodic',
+                            period_days=maintenance.period_days,
+                            scheduled_date__gte=maintenance.scheduled_date,
+                            completed_date__isnull=True
+                        )
+                        future_maintenances.delete()
+                    else:
+                        maintenance.delete()
+                    
+                    return JsonResponse({'success': True})
+                except Exception as e:
+                    return JsonResponse({
+                        'success': False,
+                        'error': str(e)
+                    }, status=400)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': "ID de maintenance non fourni"
+                }, status=400)
+        
+        return JsonResponse({
+            'success': False,
+            'error': 'Requête invalide'
+        }, status=400)
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 @login_required
 @permission_required('fabmaintenance.change_machine')
@@ -876,12 +1014,12 @@ def maintenance_create(request, machine_id):
     fablab = machine.fablab
     
     # Vérifier les permissions
-    if not request.user.is_superuser and not request.user.fablabs.filter(id=fablab.id).exists():
+    if not request.user.is_superuser and machine.fablab not in request.user.fablabs.all():
         messages.error(request, "Vous n'avez pas les permissions nécessaires pour créer une maintenance sur cette machine.")
         return redirect('fabmaintenance:machine_list')
     
     if request.method == 'POST':
-        form = MaintenanceForm(request.POST, request.FILES)
+        form = MaintenanceForm(machine=machine, data=request.POST)
         if form.is_valid():
             maintenance = form.save(commit=False)
             maintenance.machine = machine
@@ -895,7 +1033,7 @@ def maintenance_create(request, machine_id):
             messages.success(request, 'Maintenance créée avec succès.')
             return redirect('fabmaintenance:machine_detail', pk=machine.pk)
     else:
-        form = MaintenanceForm()
+        form = MaintenanceForm(machine=machine)
     
     return render(request, 'fabmaintenance/maintenance_form.html', {
         'form': form,

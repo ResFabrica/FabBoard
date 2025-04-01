@@ -121,6 +121,11 @@
                             </div>
                         </div>
                         <div class="d-flex gap-2">
+                            {% if user.is_superuser or machine.fablab in user.fablabs.all %}
+                            <a href="{% url 'fabmaintenance:machine_edit' machine.pk %}" class="btn btn-primary btn-action">
+                                <i class="fas fa-edit me-2"></i>Éditer
+                            </a>
+                            {% endif %}
                             <a href="{% url 'fabmaintenance:machine_public_view' machine.pk %}" 
                                class="btn btn-outline-primary btn-action" target="_blank">
                                 <i class="fas fa-external-link-alt me-2"></i>Vue publique
@@ -131,7 +136,6 @@
                             </button>
                         </div>
                     </div>
-
                     <div class="row">
                         <div class="col-md-6">
                             <p class="mb-2">

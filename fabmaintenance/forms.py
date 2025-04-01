@@ -110,9 +110,27 @@ class MaintenanceForm(forms.ModelForm):
         })
     )
 
+    instructions = forms.CharField(
+        label='Instructions',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3
+        })
+    )
+
+    required_tools = forms.CharField(
+        label='Outils nécessaires',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 2
+        })
+    )
+
     class Meta:
         model = Maintenance
-        fields = ['maintenance_type_choice', 'custom_type_name', 'scheduling_type', 'scheduled_date', 'period_days', 'notes', 'significant']
+        fields = ['maintenance_type_choice', 'custom_type_name', 'scheduling_type', 'scheduled_date', 'period_days', 'notes', 'significant', 'instructions', 'required_tools']
         widgets = {
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'significant': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -124,7 +142,6 @@ class MaintenanceForm(forms.ModelForm):
         if machine:
             # Ajouter l'option "Autre" à la fin de la liste des types de maintenance
             maintenance_types = MaintenanceType.objects.filter(
-                machine_type=machine.machine_type,
                 is_custom=False
             )
             choices = [(str(mt.id), str(mt)) for mt in maintenance_types]
@@ -195,9 +212,9 @@ class MaintenanceForm(forms.ModelForm):
             maintenance_type = MaintenanceType.objects.create(
                 name=self.cleaned_data['custom_type_name'],
                 description=f"Type de maintenance personnalisé créé le {timezone.now().strftime('%d/%m/%Y')}",
-                machine_type=self.machine.machine_type,
                 is_custom=True,
-                period_days=period_days
+                period_days=period_days,
+                priority=2  # Priorité moyenne par défaut
             )
             maintenance.maintenance_type = maintenance_type
             maintenance.custom_type_name = self.cleaned_data['custom_type_name']

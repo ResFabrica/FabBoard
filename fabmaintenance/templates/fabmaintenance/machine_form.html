@@ -81,17 +81,23 @@
 }
 
 .btn-close {
-    background: none;
     border: none;
     font-size: 1.5rem;
-    padding: 0;
+    padding: 0.5rem;
     cursor: pointer;
-    opacity: 0.5;
-    transition: opacity 0.2s;
+    color: #6c757d;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
 }
 
 .btn-close:hover {
-    opacity: 1;
+    color: #343a40;
+    background-color: #e9ecef;
 }
 
 @media (max-width: 576px) {
@@ -161,7 +167,11 @@
                             <label for="{{ form.fablab.id_for_label }}" class="form-label">
                                 {{ form.fablab.label }}
                             </label>
-                            {{ form.fablab }}
+                            <select name="fablab" id="{{ form.fablab.id_for_label }}" class="form-control">
+                                {% for value, label in form.fablab.field.choices %}
+                                    <option value="{{ value }}" {% if value == form.fablab.initial or value == form.fablab.value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
                             {% if form.fablab.errors %}
                             <div class="alert alert-danger mt-1">
                                 {{ form.fablab.errors }}
@@ -230,13 +240,19 @@
                                 <tr id="maintenance-{{ maintenance.id }}" class="maintenance-row">
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <span class="badge priority-{{ maintenance.maintenance_type.priority }} me-2">
-                                                {{ maintenance.maintenance_type.get_priority_display }}
+                                            {% if maintenance.period_days %}
+                                            <span class="badge bg-info me-2">
+                                                <i class="fas fa-calendar-alt me-1"></i>Périodique
                                             </span>
+                                            {% else %}
+                                            <span class="badge bg-secondary me-2">
+                                                <i class="fas fa-calendar-day me-1"></i>Planifiée
+                                            </span>
+                                            {% endif %}
                                             {{ maintenance.maintenance_type.name }}
                                         </div>
                                     </td>
-                                    <td>{{ maintenance.period_days }} jours</td>
+                                    <td>{{ maintenance.period_days|default:"-" }} {% if maintenance.period_days %}jours{% endif %}</td>
                                     <td>{{ maintenance.scheduled_date|date:"d/m/Y" }}</td>
                                     <td>
                                         <div class="btn-group">
@@ -281,11 +297,10 @@
         <form id="maintenanceForm" onsubmit="saveMaintenance(event)">
             {% csrf_token %}
             <input type="hidden" id="maintenanceId" name="maintenance_id">
-            <input type="hidden" id="maintenanceTypeChoice" name="maintenance_type_choice" value="periodic">
             
             <div class="mb-3">
-                <label for="name" class="form-label">Nom</label>
-                <input type="text" class="form-control" id="name" name="name" required>
+                <label for="maintenanceName" class="form-label">Nom de la maintenance</label>
+                <input type="text" class="form-control" id="maintenanceName" name="name" required>
             </div>
             
             <div class="mb-3">
@@ -294,18 +309,31 @@
             </div>
             
             <div class="mb-3">
-                <label for="period_days" class="form-label">Période (jours)</label>
-                <input type="number" class="form-control" id="period_days" name="period_days" required min="1">
+                <label class="form-label">Type de planification</label>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="scheduling_type" id="schedulingPeriodic" value="periodic">
+                    <label class="btn btn-outline-primary" for="schedulingPeriodic">
+                        <i class="fas fa-calendar-alt me-2"></i>Périodique
+                    </label>
+                    
+                    <input type="radio" class="btn-check" name="scheduling_type" id="schedulingScheduled" value="scheduled">
+                    <label class="btn btn-outline-primary" for="schedulingScheduled">
+                        <i class="fas fa-calendar-day me-2"></i>Planifiée
+                    </label>
+                </div>
             </div>
             
-            <div class="mb-3">
-                <label for="priority" class="form-label">Priorité</label>
-                <select class="form-select" id="priority" name="priority" required>
-                    <option value="1">Basse</option>
-                    <option value="2">Moyenne</option>
-                    <option value="3">Haute</option>
-                    <option value="4">Critique</option>
-                </select>
+            <div class="mb-3" id="periodDaysField" style="display: none;">
+                <label for="period_days" class="form-label">Période (jours)</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="period_days" name="period_days" min="1">
+                    <span class="input-group-text">j</span>
+                </div>
+            </div>
+
+            <div class="mb-3" id="scheduledDateField">
+                <label for="scheduled_date" class="form-label">Date de planification</label>
+                <input type="date" class="form-control" id="scheduled_date" name="scheduled_date" required>
             </div>
             
             <div class="mb-3">
@@ -319,7 +347,12 @@
             </div>
             
             <div class="text-end">
-                <button type="submit" class="btn btn-primary">Enregistrer</button>
+                <button type="button" class="btn btn-outline-secondary me-2" onclick="hideMaintenancePanel()">
+                    <i class="fas fa-times me-2"></i>Annuler
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Enregistrer
+                </button>
             </div>
         </form>
     </div>
@@ -344,6 +377,58 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('{{ form.machine_type.id_for_label }}').addEventListener('change', function() {
         handleMachineTypeChange(this);
     });
+
+    // Ajouter l'event listener pour la touche Échap
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            hideMaintenancePanel();
+        }
+    });
+
+    // Gestion du type de maintenance personnalisé
+    const maintenanceTypeChoice = document.getElementById('maintenance_type_choice');
+    const customTypeField = document.getElementById('custom_type_field');
+    
+    if (maintenanceTypeChoice && customTypeField) {
+        maintenanceTypeChoice.addEventListener('change', function() {
+            customTypeField.style.display = this.value === 'other' ? 'block' : 'none';
+        });
+    }
+
+    // Gestion du type de planification
+    const schedulingTypeInputs = document.querySelectorAll('input[name="scheduling_type"]');
+    const periodDaysField = document.getElementById('periodDaysField');
+    const scheduledDateField = document.getElementById('scheduledDateField');
+    
+    schedulingTypeInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            if (periodDaysField && scheduledDateField) {
+                if (this.value === 'periodic') {
+                    periodDaysField.style.display = 'block';
+                    scheduledDateField.style.display = 'none';
+                    document.getElementById('period_days').setAttribute('required', '');
+                    document.getElementById('scheduled_date').removeAttribute('required');
+                } else {
+                    periodDaysField.style.display = 'none';
+                    scheduledDateField.style.display = 'block';
+                    document.getElementById('period_days').removeAttribute('required');
+                    document.getElementById('scheduled_date').setAttribute('required', '');
+                }
+            }
+        });
+    });
+
+    // Sélectionner le type planifié par défaut lors de la création
+    const scheduledInput = document.getElementById('schedulingScheduled');
+    if (scheduledInput) {
+        scheduledInput.checked = true;
+        if (periodDaysField && scheduledDateField) {
+            periodDaysField.style.display = 'none';
+            scheduledDateField.style.display = 'block';
+            document.getElementById('period_days').removeAttribute('required');
+            document.getElementById('scheduled_date').setAttribute('required', '');
+        }
+    }
 });
 
 function showMaintenancePanel() {
@@ -373,8 +458,8 @@ function hideMaintenancePanel() {
         const maintenanceId = document.getElementById('maintenanceId');
         if (maintenanceId) maintenanceId.value = '';
         
-        const maintenanceTypeChoice = document.getElementById('maintenanceTypeChoice');
-        if (maintenanceTypeChoice) maintenanceTypeChoice.value = 'periodic';
+        const maintenanceTypeChoice = document.getElementById('maintenance_type_choice');
+        if (maintenanceTypeChoice) maintenanceTypeChoice.value = '';
         
         // Réinitialiser le titre du panneau
         const panelTitle = document.getElementById('panelTitle');
@@ -383,35 +468,84 @@ function hideMaintenancePanel() {
 }
 
 function editMaintenance(id) {
-    console.log('Édition de la maintenance avec ID:', id);
-    const headers = {
-        'X-CSRFToken': getCookie('csrftoken')
-    };
+    // Afficher d'abord le panneau
+    showMaintenancePanel();
     
-    const url = `{% url 'fabmaintenance:maintenance_ajax' machine.pk %}?id=${id}`;
-    console.log('URL appelée:', url);
-    
-    fetch(url, { headers })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Données reçues brutes:', data);
-            
-            // Assignation des valeurs
-            document.getElementById('maintenanceId').value = data.id;
-            document.getElementById('maintenanceTypeChoice').value = data.id;  // On utilise l'ID de la maintenance elle-même
-            document.getElementById('name').value = data.name || '';
-            document.getElementById('description').value = data.description || '';
-            document.getElementById('period_days').value = data.period_days || '';
-            document.getElementById('priority').value = data.priority || '2';
-            document.getElementById('instructions').value = data.instructions || '';
-            document.getElementById('required_tools').value = data.required_tools || '';
-            document.getElementById('panelTitle').textContent = 'Éditer la maintenance';
-            
-            showMaintenancePanel();
-        })
-        .catch(error => {
-            console.error('Erreur lors de la récupération des données:', error);
-        });
+    // Attendre un court instant pour s'assurer que le panneau est affiché
+    setTimeout(() => {
+        const headers = {
+            'X-CSRFToken': getCookie('csrftoken')
+        };
+        
+        const url = `{% url 'fabmaintenance:maintenance_ajax' machine.pk %}?id=${id}`;
+        
+        fetch(url, { headers })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.error || 'Une erreur est survenue');
+                }
+                
+                // Vérifier que les éléments existent avant de les manipuler
+                const elements = {
+                    'maintenanceId': document.getElementById('maintenanceId'),
+                    'maintenanceName': document.getElementById('maintenanceName'),
+                    'description': document.getElementById('description'),
+                    'periodDays': document.getElementById('period_days'),
+                    'scheduledDate': document.getElementById('scheduled_date'),
+                    'instructions': document.getElementById('instructions'),
+                    'requiredTools': document.getElementById('required_tools'),
+                    'panelTitle': document.getElementById('panelTitle'),
+                    'schedulingPeriodic': document.getElementById('schedulingPeriodic'),
+                    'schedulingScheduled': document.getElementById('schedulingScheduled'),
+                    'periodDaysField': document.getElementById('periodDaysField'),
+                    'scheduledDateField': document.getElementById('scheduledDateField')
+                };
+                
+                // Vérifier que tous les éléments nécessaires sont présents
+                for (const [key, element] of Object.entries(elements)) {
+                    if (!element) {
+                        hideMaintenancePanel();
+                        return;
+                    }
+                }
+                
+                // Assignation des valeurs
+                elements.maintenanceId.value = data.id;
+                elements.maintenanceName.value = data.maintenance_type.name || '';
+                elements.description.value = data.description || '';
+                elements.periodDays.value = data.period_days || '';
+                elements.scheduledDate.value = data.scheduled_date || '';
+                elements.instructions.value = data.instructions || '';
+                elements.requiredTools.value = data.required_tools || '';
+                
+                // Définir le type de planification en fonction des données
+                if (data.period_days) {
+                    elements.schedulingPeriodic.checked = true;
+                    elements.periodDaysField.style.display = 'block';
+                    elements.scheduledDateField.style.display = 'none';
+                    elements.periodDays.setAttribute('required', '');
+                    elements.scheduledDate.removeAttribute('required');
+                } else {
+                    elements.schedulingScheduled.checked = true;
+                    elements.periodDaysField.style.display = 'none';
+                    elements.scheduledDateField.style.display = 'block';
+                    elements.periodDays.removeAttribute('required');
+                    elements.scheduledDate.setAttribute('required', '');
+                }
+                
+                elements.panelTitle.textContent = 'Éditer la maintenance';
+            })
+            .catch(error => {
+                hideMaintenancePanel();
+                alert('Une erreur est survenue lors de la récupération des données de la maintenance.');
+            });
+    }, 100);
 }
 
 function deleteMaintenance(id) {
@@ -435,12 +569,22 @@ function saveMaintenance(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
     const maintenanceId = formData.get('maintenance_id');
+    const maintenanceName = formData.get('name');
+    const description = formData.get('description');
+    
+    // Vérifier si un type de planification est sélectionné
+    const schedulingTypeInput = document.querySelector('input[name="scheduling_type"]:checked');
+    if (!schedulingTypeInput) {
+        alert('Veuillez sélectionner un type de planification (Périodique ou Planifiée)');
+        return;
+    }
+    const schedulingType = schedulingTypeInput.value;
     
     // Ajouter les champs manquants
-    formData.append('maintenance_type_choice', maintenanceId ? formData.get('maintenance_type_choice') : 'periodic');  // Utiliser l'ID existant ou 'periodic' pour nouveau
-    formData.append('scheduling_type', 'periodic');  // Type de programmation périodique par défaut
-    formData.append('custom_type_name', formData.get('name'));  // Le nom devient le type personnalisé
-    formData.append('significant', 'false');  // Non marquante par défaut
+    formData.append('scheduling_type', schedulingType);
+    formData.append('maintenance_type_choice', 'other');  // Indiquer que c'est un type personnalisé
+    formData.append('custom_type_name', maintenanceName);  // Utiliser le nom comme type personnalisé
+    formData.append('description', description);  // Ajouter la description
     
     const headers = {
         'X-CSRFToken': getCookie('csrftoken')
@@ -451,8 +595,15 @@ function saveMaintenance(event) {
         body: formData,
         headers
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(response => response.json().then(data => ({
+        ok: response.ok,
+        data: data
+    })))
+    .then(({ok, data}) => {
+        if (!ok) {
+            throw new Error(data.error || 'Erreur serveur');
+        }
+        
         if (data.success) {
             const tr = maintenanceId ? 
                 document.getElementById(`maintenance-${maintenanceId}`) : 
@@ -463,8 +614,9 @@ function saveMaintenance(event) {
                 tr.className = 'maintenance-row';
             }
             
-            const priorityClass = `priority-${data.priority}`;
-            const priorityBadge = `<span class="badge ${priorityClass} me-2">${data.priority_display}</span>`;
+            const schedulingBadge = data.period_days ? 
+                `<span class="badge bg-info me-2"><i class="fas fa-calendar-alt me-1"></i>Périodique</span>` :
+                `<span class="badge bg-secondary me-2"><i class="fas fa-calendar-day me-1"></i>Planifiée</span>`;
             const buttons = `
                 <div class="btn-group">
                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="editMaintenance(${data.id})">
@@ -476,38 +628,42 @@ function saveMaintenance(event) {
                 </div>
             `;
             
-            tr.innerHTML = `
-                <td>
-                    <div class="d-flex align-items-center">
-                        ${priorityBadge}
-                        ${data.name}
-                    </div>
-                </td>
-                <td>${data.period_days} jours</td>
-                <td>${data.scheduled_date}</td>
-                <td>${buttons}</td>
-            `;
-            
-            if (!maintenanceId) {
-                document.getElementById('maintenanceTableBody').appendChild(tr);
+            // Mettre à jour ou créer la ligne du tableau
+            if (maintenanceId) {
+                tr.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center">
+                            ${schedulingBadge}
+                            ${data.maintenance_type ? data.maintenance_type.name : maintenanceName}
+                        </div>
+                    </td>
+                    <td>${data.period_days ? data.period_days + ' jours' : '-'}</td>
+                    <td>${data.scheduled_date || '-'}</td>
+                    <td class="text-end">${buttons}</td>
+                `;
+            } else {
+                tr.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center">
+                            ${schedulingBadge}
+                            ${data.maintenance_type ? data.maintenance_type.name : maintenanceName}
+                        </div>
+                    </td>
+                    <td>${data.period_days ? data.period_days + ' jours' : '-'}</td>
+                    <td>${data.scheduled_date || '-'}</td>
+                    <td class="text-end">${buttons}</td>
+                `;
+                document.querySelector('#maintenanceTable tbody').appendChild(tr);
             }
             
             hideMaintenancePanel();
-            resetMaintenanceForm();
         } else {
-            console.error(data.error);
+            throw new Error(data.error || 'Erreur lors de la sauvegarde');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        alert(error.message || 'Une erreur est survenue lors de la sauvegarde de la maintenance.');
     });
-}
-
-function resetMaintenanceForm() {
-    const form = document.getElementById('maintenanceForm');
-    form.reset();
-    document.getElementById('maintenanceId').value = '';
-    document.getElementById('panelTitle').textContent = 'Ajouter une maintenance';
 }
 
 function getCookie(name) {

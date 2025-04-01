@@ -341,43 +341,105 @@ def task_create(request, section_id):
 def task_edit(request, task_id):
     """Modifier une tâche existante."""
     logger.info("\n=== DÉBUT DE LA REQUÊTE D'ÉDITION DE TÂCHE ===")
+    logger.info(f"Task ID: {task_id}")
+    logger.info(f"User: {request.user.username} (ID: {request.user.id})")
     logger.info(f"Method: {request.method}")
     logger.info(f"Content-Type: {request.content_type}")
-    logger.info(f"Headers: {dict(request.headers)}")
     
     task = get_object_or_404(Task, id=task_id)
+    
+    # Log des informations originales de la tâche
+    logger.info("\n=== VALEURS ORIGINALES DE LA TÂCHE ===")
+    logger.info(f"Titre: {task.title}")
+    logger.info(f"Description: {task.description}")
+    logger.info(f"Date limite: {task.deadline}")
+    logger.info(f"Terminée: {task.is_completed}")
+    
+    # Log détaillé des tags originaux
+    tags_originaux = list(task.tags.all())
+    logger.info(f"Tags originaux ({len(tags_originaux)}):")
+    for tag in tags_originaux:
+        logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
+    
+    # Log des utilisateurs assignés originaux
+    users_originaux = list(task.assigned_users.all())
+    logger.info(f"Utilisateurs assignés originaux ({len(users_originaux)}):")
+    for user in users_originaux:
+        logger.info(f"  - ID: {user.id}, Username: {user.username}")
+    
     if not task.section.view.fablab.users.filter(id=request.user.id).exists():
+        logger.warning(f"Accès refusé: l'utilisateur {request.user.username} n'a pas accès à cette tâche")
         raise PermissionDenied
     
     if request.method == 'POST':
         logger.info("\n=== DÉTAILS DE LA REQUÊTE POST ===")
-        logger.info(f"POST data: {dict(request.POST)}")
-        logger.info(f"FILES data: {dict(request.FILES)}")
-        logger.info(f"FILES keys: {request.FILES.keys()}")
-        if request.FILES:
-            for key, file in request.FILES.items():
-                logger.info(f"\nFichier '{key}':")
-                logger.info(f"- name: {file.name}")
-                logger.info(f"- size: {file.size}")
-                logger.info(f"- content_type: {file.content_type}")
-                logger.info(f"- charset: {getattr(file, 'charset', 'N/A')}")
-                logger.info(f"- content_type_extra: {getattr(file, 'content_type_extra', 'N/A')}")
-                logger.info(f"- temporary_file_path: {hasattr(file, 'temporary_file_path')}")
-        else:
-            logger.info("Aucun fichier dans request.FILES")
         
-        logger.info("\n=== CRÉATION DU FORMULAIRE ===")
+        # Log des données POST spécifiques liées aux dates et tags
+        logger.info("\n=== DONNÉES POST SPÉCIFIQUES ===")
+        if 'deadline' in request.POST:
+            logger.info(f"Deadline soumise: {request.POST.get('deadline')}")
+        else:
+            logger.info("Aucune deadline soumise")
+            
+        if 'tags' in request.POST:
+            tags_soumis = request.POST.getlist('tags')
+            logger.info(f"Tags soumis: {tags_soumis}")
+        else:
+            logger.info("Aucun tag soumis")
+        
+        logger.info(f"POST data complète: {dict(request.POST)}")
+        logger.info(f"FILES data: {dict(request.FILES)}")
+        
         form = TaskForm(request.POST, request.FILES, instance=task, section=task.section)
         logger.info(f"Formulaire créé avec succès")
-        logger.info(f"Champs du formulaire: {form.fields.keys()}")
         
         if form.is_valid():
             logger.info("\n=== FORMULAIRE VALIDE ===")
             logger.info(f"Cleaned data: {form.cleaned_data}")
+            
+            # Log détaillé des dates et tags validés
+            if 'deadline' in form.cleaned_data:
+                logger.info(f"Date limite validée: {form.cleaned_data.get('deadline')}")
+            
+            if 'tags' in form.cleaned_data:
+                tags_valides = list(form.cleaned_data.get('tags', []))
+                logger.info(f"Tags validés ({len(tags_valides)}):")
+                for tag in tags_valides:
+                    logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
+                
+                # Identifier les tags ajoutés et supprimés
+                tags_ajoutes = [tag for tag in tags_valides if tag not in tags_originaux]
+                tags_supprimes = [tag for tag in tags_originaux if tag not in tags_valides]
+                
+                if tags_ajoutes:
+                    logger.info(f"Tags ajoutés ({len(tags_ajoutes)}):")
+                    for tag in tags_ajoutes:
+                        logger.info(f"  + ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
+                
+                if tags_supprimes:
+                    logger.info(f"Tags supprimés ({len(tags_supprimes)}):")
+                    for tag in tags_supprimes:
+                        logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
+            
             try:
                 task = form.save()
-                logger.info("Tâche sauvegardée avec succès")
+                logger.info("\n=== TÂCHE SAUVEGARDÉE AVEC SUCCÈS ===")
                 logger.info(f"ID de la tâche: {task.id}")
+                logger.info(f"Titre: {task.title}")
+                logger.info(f"Date limite: {task.deadline}")
+                logger.info(f"Terminée: {task.is_completed}")
+                
+                # Log des tags finaux
+                tags_finaux = list(task.tags.all())
+                logger.info(f"Tags finaux ({len(tags_finaux)}):")
+                for tag in tags_finaux:
+                    logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
+                
+                # Log des utilisateurs assignés finaux
+                users_finaux = list(task.assigned_users.all())
+                logger.info(f"Utilisateurs assignés finaux ({len(users_finaux)}):")
+                for user in users_finaux:
+                    logger.info(f"  - ID: {user.id}, Username: {user.username}")
                 
                 if task.files.exists():
                     logger.info("\n=== FICHIERS ATTACHÉS ===")
@@ -402,9 +464,15 @@ def task_edit(request, task_id):
         else:
             logger.error("\n=== ERREURS DE VALIDATION DU FORMULAIRE ===")
             logger.error(f"Erreurs: {form.errors}")
+            
+            # Log détaillé des erreurs spécifiques aux dates et tags
+            if 'deadline' in form.errors:
+                logger.error(f"Erreurs de date limite: {form.errors['deadline']}")
+            
+            if 'tags' in form.errors:
+                logger.error(f"Erreurs de tags: {form.errors['tags']}")
+            
             logger.error(f"Erreurs non liées aux champs: {form.non_field_errors()}")
-            for field, errors in form.errors.items():
-                logger.error(f"Erreurs pour {field}: {errors}")
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
@@ -412,13 +480,36 @@ def task_edit(request, task_id):
                     'errors': form.errors
                 })
     else:
-        form = TaskForm(instance=task, section=task.section)
+        logger.info("\n=== REQUÊTE GET - CHARGEMENT DU FORMULAIRE ===")
+        # Passer explicitement le fablab au formulaire pour s'assurer que les tags sont correctement filtrés
+        fablab = task.section.view.fablab
+        logger.info(f"FabLab récupéré: {fablab.name} (ID: {fablab.id})")
+        form = TaskForm(instance=task, section=task.section, fablab=fablab)
+        
+        # Vérifier que les tags sont correctement chargés
+        for field_name, field in form.fields.items():
+            if field_name == 'tags':
+                logger.info(f"Champ {field_name} - queryset contient {field.queryset.count()} tags")
+                logger.info(f"Tags disponibles dans la liste: {[f'{t.id}:{t.name}' for t in field.queryset]}")
     
     context = {
         'form': form,
         'task': task,
         'title': 'Modifier la Tâche'
     }
+    
+    # Ajouter les données des tags pour le JavaScript
+    if task:
+        tags_data = []
+        for tag in task.tags.all():
+            tags_data.append({
+                'id': tag.id,
+                'name': tag.name,
+                'color': tag.color or "#cccccc"
+            })
+        context['tags_data_json'] = json.dumps(tags_data)
+    
+    logger.info("\n=== FIN DE LA REQUÊTE D'ÉDITION DE TÂCHE ===")
     
     if request.GET.get('panel'):
         return render(request, 'fabprojects/task_form_panel.html', context)
@@ -823,13 +914,31 @@ def task_move(request, task_id):
 def tag_autocomplete(request):
     """Endpoint pour l'autocomplétion des tags."""
     q = request.GET.get('q', '')
+    logger.info(f"\n=== REQUÊTE TAG_AUTOCOMPLETE ===")
+    logger.info(f"Terme de recherche: '{q}'")
+    logger.info(f"Utilisateur: {request.user.username} (ID: {request.user.id})")
+    
     user_fablabs = request.user.fablabs.all()
+    logger.info(f"FabLabs de l'utilisateur: {[fl.name for fl in user_fablabs]}")
+    
     tags = Tag.objects.filter(fablab__in=user_fablabs)
     
     if q:
         tags = tags.filter(name__icontains=q)
+        logger.info(f"Filtrage par nom contenant '{q}': {tags.count()} résultats")
+    else:
+        logger.info(f"Aucun filtre de recherche: {tags.count()} résultats")
     
     results = [{'id': tag.id, 'text': tag.name, 'color': tag.color} for tag in tags[:10]]
+    
+    logger.info(f"\n=== JSON ENVOYÉ AU CLIENT ===")
+    logger.info(f"Nombre de tags: {len(results)}")
+    for i, tag_data in enumerate(results):
+        logger.info(f"Tag {i+1}:")
+        logger.info(f"  - id: {tag_data['id']}")
+        logger.info(f"  - text: '{tag_data['text']}'")
+        logger.info(f"  - color: '{tag_data['color']}'")
+    
     return JsonResponse({'results': results})
 
 @login_required
