@@ -85,7 +85,7 @@ class TagAdmin(admin.ModelAdmin):
     search_fields = ('name', 'fablab__name')
 
     def get_tasks_count(self, obj):
-        return obj.task_set.count()
+        return obj.tasks.count()
     get_tasks_count.short_description = 'Nombre de tâches'
 
 # Configuration de l'admin pour les champs personnalisés

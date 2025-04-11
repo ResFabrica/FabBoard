@@ -210,6 +210,15 @@
     .clear-filter-btn.visible {
         display: inline-block;
     }
+
+    .task-description {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-height: 4.5em; /* 3 lignes * 1.5em (hauteur de ligne) */
+        line-height: 1.5em;
+    }
 </style>
 {% endblock %}
 
@@ -366,7 +375,7 @@
                                                    data-original-value="{{ task.title }}">
                                         </div>
                                         {% if task.description %}
-                                        <div class="small text-muted mt-1">{{ task.description|linebreaksbr }}</div>
+                                        <div class="small text-muted mt-1 task-description">{{ task.description|linebreaksbr }}</div>
                                         {% endif %}
                                     </td>
                                     

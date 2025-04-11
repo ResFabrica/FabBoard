@@ -73,13 +73,15 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% for task_tag in task.tags.all %}
-                                                    <a href="{% url 'fabprojects:tag_tasks' task_tag.id %}" class="text-decoration-none">
-                                                        <span class="badge" style="background-color: {{ task_tag.color }}">
-                                                            {{ task_tag.name }}
-                                                        </span>
-                                                    </a>
-                                                {% endfor %}
+                                                <div class="tags-container">
+                                                    {% for task_tag in task.tags.all %}
+                                                        <a href="{% url 'fabprojects:tag_tasks' task_tag.id %}" class="text-decoration-none">
+                                                            <span class="badge" style="background-color: {{ task_tag.color }}">
+                                                                {{ task_tag.name }}
+                                                            </span>
+                                                        </a>
+                                                    {% endfor %}
+                                                </div>
                                             </td>
                                             <td>
                                                 <div class="btn-group">
@@ -155,4 +157,20 @@
         });
     });
 </script>
+
+<style>
+.tags-container {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-height: 4.5em; /* 3 lignes * 1.5em (hauteur de ligne) */
+    line-height: 1.5em;
+}
+
+.tags-container .badge {
+    margin: 0.1em;
+    display: inline-block;
+}
+</style>
 {% endblock %} 
