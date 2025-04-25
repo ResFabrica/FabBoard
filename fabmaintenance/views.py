@@ -213,7 +213,7 @@ def complete_maintenance(request, pk):
     
     # Si c'est une maintenance périodique, créer la prochaine occurrence
     if maintenance.scheduling_type == 'periodic' and maintenance.period_days:
-        next_date = maintenance.scheduled_date + timezone.timedelta(days=maintenance.period_days)
+        next_date = timezone.now() + timezone.timedelta(days=maintenance.period_days)
         Maintenance.objects.create(
             machine=maintenance.machine,
             maintenance_type=maintenance.maintenance_type,
