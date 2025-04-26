@@ -85,6 +85,19 @@
     margin-right: 0.5rem;
     color: #6c757d;
 }
+
+/* Styles pour le modal de confirmation */
+.confirmation-modal .modal-dialog {
+    max-width: 500px;
+}
+
+.confirmation-modal .modal-body {
+    padding: 1.5rem;
+}
+
+.confirmation-modal .alert {
+    margin-bottom: 1rem;
+}
 </style>
 {% endblock %}
 
@@ -225,7 +238,10 @@
                                     </button>
                                     {% endif %}
                                     <a href="{% url 'fabmaintenance:complete_maintenance' maintenance.pk %}"
-                                       class="btn btn-success btn-sm">
+                                       class="btn btn-success btn-sm complete-maintenance-btn"
+                                       data-maintenance-id="{{ maintenance.pk }}"
+                                       data-maintenance-type="{{ maintenance.maintenance_type.name }}"
+                                       data-scheduled-date="{{ maintenance.scheduled_date|date:'Y-m-d' }}">
                                         <i class="fas fa-check me-1"></i>Terminer
                                     </a>
                                     {% if maintenance.scheduling_type == 'periodic' %}
@@ -400,4 +416,101 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Token CSRF pour les requêtes AJAX -->
+{% csrf_token %}
+
+<!-- Modal de confirmation pour validation anticipée -->
+<div class="modal fade confirmation-modal" id="earlyCompletionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Confirmation de validation anticipée
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Cette maintenance est programmée pour une date ultérieure. Êtes-vous sûr de vouloir la valider maintenant ?
+                </div>
+                <p class="mb-0">
+                    <strong>Type :</strong> <span id="maintenanceType"></span><br>
+                    <strong>Date prévue :</strong> <span id="scheduledDate"></span>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" id="confirmEarlyCompletion">
+                    <i class="fas fa-check me-2"></i>Confirmer la validation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestionnaire pour les boutons de validation
+    document.querySelectorAll('.complete-maintenance-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const maintenanceId = this.dataset.maintenanceId;
+            const maintenanceType = this.dataset.maintenanceType;
+            const scheduledDate = this.dataset.scheduledDate;
+            const currentDate = new Date();
+            const scheduledDateObj = new Date(scheduledDate);
+
+            // Si la date prévue est dans le futur
+            if (scheduledDateObj > currentDate) {
+                // Afficher le modal de confirmation
+                document.getElementById('maintenanceType').textContent = maintenanceType;
+                document.getElementById('scheduledDate').textContent = scheduledDate;
+                
+                const modal = new bootstrap.Modal(document.getElementById('earlyCompletionModal'));
+                modal.show();
+
+                // Gestionnaire pour le bouton de confirmation
+                document.getElementById('confirmEarlyCompletion').onclick = function() {
+                    completeMaintenance(maintenanceId);
+                    modal.hide();
+                };
+            } else {
+                // Si la date est passée ou aujourd'hui, valider directement
+                completeMaintenance(maintenanceId);
+            }
+        });
+    });
+
+    // Fonction pour valider la maintenance via AJAX
+    function completeMaintenance(maintenanceId) {
+        fetch(`{% url 'fabmaintenance:complete_maintenance' 0 %}`.replace('0', maintenanceId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Recharger la page pour afficher les changements
+                window.location.reload();
+            } else {
+                // Afficher le message d'erreur
+                alert(data.error || 'Une erreur est survenue lors de la validation de la maintenance.');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Une erreur est survenue lors de la validation de la maintenance.');
+        });
+    }
+});
+</script>
 {% endblock %} 

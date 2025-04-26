@@ -204,8 +204,30 @@ def add_maintenance(request, machine_pk):
         'title': f'Ajouter une maintenance - {machine.name}'
     })
 
+@csrf_exempt
 def complete_maintenance(request, pk):
     maintenance = get_object_or_404(Maintenance, pk=pk)
+    
+    # Vérifier si une maintenance de même type a déjà été validée aujourd'hui
+    if maintenance.scheduling_type == 'periodic':
+        today = timezone.now().date()
+        existing_maintenance = Maintenance.objects.filter(
+            machine=maintenance.machine,
+            maintenance_type=maintenance.maintenance_type,
+            scheduling_type='periodic',
+            period_days=maintenance.period_days,
+            completed_date__date=today
+        ).exclude(pk=maintenance.pk).first()
+        
+        if existing_maintenance:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Une maintenance de ce type a déjà été validée aujourd\'hui.'
+                })
+            messages.error(request, 'Une maintenance de ce type a déjà été validée aujourd\'hui.')
+            return redirect('fabmaintenance:machine_detail', pk=maintenance.machine.pk)
+    
     # Permettre à n'importe qui de marquer une maintenance comme terminée
     maintenance.completed_date = timezone.now()
     maintenance.completed_by = request.user if request.user.is_authenticated else None
@@ -213,7 +235,10 @@ def complete_maintenance(request, pk):
     
     # Si c'est une maintenance périodique, créer la prochaine occurrence
     if maintenance.scheduling_type == 'periodic' and maintenance.period_days:
-        next_date = timezone.now() + timezone.timedelta(days=maintenance.period_days)
+        # Utiliser la date du jour comme base pour le calcul
+        today = timezone.now().date()
+        next_date = today + timezone.timedelta(days=maintenance.period_days)
+        
         Maintenance.objects.create(
             machine=maintenance.machine,
             maintenance_type=maintenance.maintenance_type,
@@ -222,6 +247,9 @@ def complete_maintenance(request, pk):
             period_days=maintenance.period_days,
             notes=f"Maintenance périodique (tous les {maintenance.period_days} jours)"
         )
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True})
     
     messages.success(request, 'Maintenance marquée comme terminée.')
     
