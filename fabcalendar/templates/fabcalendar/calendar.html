@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<style>
+    .calendar-container {
+        height: calc(100vh - 200px);
+        margin: 20px;
+    }
+    .fc-event {
+        cursor: pointer;
+    }
+    .fc-event-title {
+        font-weight: bold;
+    }
+    .fc-event-description {
+        font-size: 0.9em;
+        margin-top: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="card-title">Calendrier</h3>
+                        <div class="d-flex gap-2">
+                            <div class="btn-group me-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="showAllEvents">
+                                    <i class="fas fa-calendar-alt"></i> Tout
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success" id="showTasks">
+                                    <i class="fas fa-tasks"></i> Tâches
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="showMaintenance">
+                                    <i class="fas fa-tools"></i> Maintenances
+                                </button>
+                            </div>
+                            <div class="btn-group">
+                                {% for fablab in fablabs %}
+                                <a href="?fablab={{ fablab.id }}" 
+                                   class="btn btn-sm {% if selected_fablab.id == fablab.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    {{ fablab.name }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="calendar" class="calendar-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/fr.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    
+    // Récupérer la dernière vue sauvegardée ou utiliser 'dayGridMonth' par défaut
+    var lastView = localStorage.getItem('calendarLastView') || 'dayGridMonth';
+    
+    // Récupérer le dernier filtre sauvegardé ou utiliser 'all' par défaut
+    var lastFilter = localStorage.getItem('calendarLastFilter') || 'all';
+    
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        locale: 'fr',
+        timeZone: 'local',
+        initialView: lastView,
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: function(info, successCallback, failureCallback) {
+            // Formater les dates en ISO8601
+            var start = info.start.toISOString();
+            var end = info.end.toISOString();
+            
+            fetch(`/calendar/events/?start=${start}&end=${end}&fablab={{ selected_fablab.id }}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Filtrer les événements selon le filtre actuel
+                    if (lastFilter !== 'all') {
+                        data = data.filter(event => event.type === lastFilter);
+                    }
+                    successCallback(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching events:', error);
+                    failureCallback(error);
+                });
+        },
+        eventClick: function(info) {
+            if (info.event.url) {
+                window.location.href = info.event.url;
+            }
+        },
+        eventDidMount: function(info) {
+            // Ajouter la description comme tooltip
+            if (info.event.extendedProps.description) {
+                info.el.title = info.event.extendedProps.description;
+            }
+        },
+        // Sauvegarder la vue actuelle quand elle change
+        viewDidMount: function(info) {
+            localStorage.setItem('calendarLastView', info.view.type);
+        }
+    });
+    
+    // Gestionnaires d'événements pour les boutons de filtrage
+    document.getElementById('showAllEvents').addEventListener('click', function() {
+        lastFilter = 'all';
+        localStorage.setItem('calendarLastFilter', lastFilter);
+        calendar.refetchEvents();
+        updateFilterButtons();
+    });
+    
+    document.getElementById('showTasks').addEventListener('click', function() {
+        lastFilter = 'task';
+        localStorage.setItem('calendarLastFilter', lastFilter);
+        calendar.refetchEvents();
+        updateFilterButtons();
+    });
+    
+    document.getElementById('showMaintenance').addEventListener('click', function() {
+        lastFilter = 'maintenance';
+        localStorage.setItem('calendarLastFilter', lastFilter);
+        calendar.refetchEvents();
+        updateFilterButtons();
+    });
+    
+    // Fonction pour mettre à jour l'apparence des boutons de filtrage
+    function updateFilterButtons() {
+        document.getElementById('showAllEvents').classList.remove('btn-primary');
+        document.getElementById('showTasks').classList.remove('btn-primary');
+        document.getElementById('showMaintenance').classList.remove('btn-primary');
+        
+        document.getElementById('showAllEvents').classList.add('btn-outline-primary');
+        document.getElementById('showTasks').classList.add('btn-outline-success');
+        document.getElementById('showMaintenance').classList.add('btn-outline-danger');
+        
+        switch(lastFilter) {
+            case 'all':
+                document.getElementById('showAllEvents').classList.remove('btn-outline-primary');
+                document.getElementById('showAllEvents').classList.add('btn-primary');
+                break;
+            case 'task':
+                document.getElementById('showTasks').classList.remove('btn-outline-success');
+                document.getElementById('showTasks').classList.add('btn-success');
+                break;
+            case 'maintenance':
+                document.getElementById('showMaintenance').classList.remove('btn-outline-danger');
+                document.getElementById('showMaintenance').classList.add('btn-danger');
+                break;
+        }
+    }
+    
+    // Initialiser l'apparence des boutons
+    updateFilterButtons();
+    
+    calendar.render();
+});
+</script>
+{% endblock %} 

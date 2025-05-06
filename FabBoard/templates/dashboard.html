@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load static %}
+{% load fabprojects_filters %}
+
+{% block title %}Tableau de bord - FabBoard{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<style>
+    body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .content {
+        flex: 1 0 auto;
+    }
+    .footer {
+        flex-shrink: 0;
+    }
+    .dashboard-card {
+        height: 100%;
+    }
+    .maintenance-card {
+        border-left: 5px solid #dc3545;
+    }
+    .task-card {
+        border-left: 5px solid #28a745;
+    }
+    .due-soon {
+        border-left: 5px solid #ffc107;
+    }
+    .overdue {
+        border-left: 5px solid #dc3545;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .fablab-selector {
+        margin-bottom: 1rem;
+    }
+    /* Styles pour le mini-calendrier */
+    .mini-calendar {
+        height: 400px;
+        margin: 0;
+        padding: 0;
+        position: relative;
+    }
+    .mini-calendar .fc {
+        height: 100%;
+    }
+    .mini-calendar .fc-toolbar {
+        padding: 0.5rem;
+        margin-bottom: 0.5rem !important;
+    }
+    .mini-calendar .fc-toolbar-title {
+        font-size: 1.1rem !important;
+    }
+    .mini-calendar .fc-button {
+        padding: 0.2rem 0.4rem !important;
+        font-size: 0.8rem !important;
+    }
+    .mini-calendar .fc-daygrid-day {
+        min-height: 2.5rem !important;
+        height: auto !important;
+    }
+    .mini-calendar .fc-daygrid-day-frame {
+        min-height: 2.5rem !important;
+    }
+    .mini-calendar .fc-daygrid-day-events {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+    }
+    .mini-calendar .fc-daygrid-day-number {
+        font-size: 0.9rem;
+        padding: 2px 4px;
+    }
+    .mini-calendar .fc-event {
+        font-size: 0.75rem;
+        padding: 1px 3px;
+        margin: 1px 0;
+        cursor: pointer;
+    }
+    .mini-calendar .fc-event-title {
+        font-weight: normal;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .mini-calendar .fc-day-today {
+        background-color: rgba(53, 167, 255, 0.1) !important;
+    }
+    .mini-calendar .fc-daygrid-more-link {
+        font-size: 0.75rem;
+        margin: 0;
+        padding: 0 2px;
+    }
+    .mini-calendar .fc-daygrid-week-number {
+        font-size: 0.75rem;
+        padding: 2px;
+    }
+    .mini-calendar .fc-col-header-cell {
+        padding: 2px 0;
+    }
+    .mini-calendar .fc-scrollgrid {
+        border: none !important;
+    }
+    .mini-calendar .fc-scrollgrid-section > * {
+        border-width: 0 !important;
+    }
+    /* Ajustements pour le conteneur principal */
+    .container-fluid {
+        padding-bottom: 1rem;
+    }
+    .row:last-child {
+        margin-bottom: 0;
+    }
+    .card {
+        margin-bottom: 1rem;
+    }
+    /* Ajustements pour la carte du calendrier */
+    .calendar-card {
+        height: 450px;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1rem;
+    }
+    .calendar-card .card-body {
+        flex: 1;
+        overflow: hidden;
+        padding: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="fablab-selector">
+                    <div class="btn-group">
+                        {% for fablab in fablabs %}
+                        <a href="?fablab={{ fablab.id }}" 
+                           class="btn {% if selected_fablab.id == fablab.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            {{ fablab.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Vues de projet avec leurs tâches -->
+            <div class="col-12 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-project-diagram text-info me-2"></i>
+                            Vues de projet
+                        </h5>
+                        <a href="{% url 'fabprojects:view_list' %}" class="btn btn-sm btn-outline-primary">
+                            Voir tout
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        {% if active_views %}
+                            <div class="row">
+                                {% for view in active_views %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-header">
+                                            <h6 class="card-title mb-0">{{ view.name }}</h6>
+                                            <small class="text-muted">
+                                                {{ view.sections.count }} section{{ view.sections.count|pluralize }}
+                                                • {{ view.tasks.count }} tâche{{ view.tasks.count|pluralize }}
+                                            </small>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            {% with view_tasks=current_tasks|filter_tasks_by_view:view %}
+                                            {% if view_tasks %}
+                                                <div class="list-group list-group-flush">
+                                                    {% for task in view_tasks %}
+                                                    <a href="{% url 'fabprojects:task_detail' task.id %}" 
+                                                        class="list-group-item list-group-item-action {% if task.deadline %}{% if task.is_overdue %}overdue{% elif task.is_due_soon %}due-soon{% endif %}{% endif %}">
+                                                        <div class="d-flex w-100 justify-content-between align-items-start">
+                                                            <h6 class="mb-1">{{ task.title }}</h6>
+                                                            {% if task.deadline %}
+                                                                <small class="text-muted">{{ task.deadline|date:"d/m/Y" }}</small>
+                                                            {% else %}
+                                                                <small class="text-muted"><i class="fas fa-clock"></i> {{ task.created_at|timesince }}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                        <p class="mb-1 small">{{ task.description|truncatechars:50 }}</p>
+                                                        <div class="mt-1">
+                                                            {% for user in task.assigned_users.all %}
+                                                            <span class="badge" style="background-color: {{ user.profile.avatar_color|default:'#6c757d' }}">{{ user.get_full_name|default:user.username }}</span>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </a>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <p class="text-muted p-3 mb-0">Aucune tâche en cours</p>
+                                            {% endif %}
+                                            {% endwith %}
+                                        </div>
+                                        <div class="card-footer bg-transparent">
+                                            <a href="{% url 'fabprojects:view_detail' view.id %}" class="btn btn-sm btn-outline-primary">
+                                                Voir la vue
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">Aucune vue de projet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendrier des événements -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card dashboard-card calendar-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calendar-alt text-primary me-2"></i>
+                            Calendrier des événements
+                        </h5>
+                        <a href="{% url 'fabcalendar:calendar' %}" class="btn btn-sm btn-outline-primary">
+                            Voir le calendrier complet
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div id="calendar" class="mini-calendar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/fr.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        locale: 'fr',
+        timeZone: 'local',
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth'
+        },
+        height: 'auto',
+        contentHeight: 350,
+        events: function(info, successCallback, failureCallback) {
+            var start = info.start.toISOString();
+            var end = info.end.toISOString();
+            
+            fetch(`/calendar/events/?start=${start}&end=${end}&fablab={{ selected_fablab.id }}`)
+                .then(response => response.json())
+                .then(data => {
+                    successCallback(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching events:', error);
+                    failureCallback(error);
+                });
+        },
+        eventClick: function(info) {
+            if (info.event.url) {
+                window.location.href = info.event.url;
+            }
+        },
+        eventDidMount: function(info) {
+            if (info.event.extendedProps.description) {
+                info.el.title = info.event.extendedProps.description;
+            }
+        },
+        dayMaxEvents: 2,
+        displayEventTime: false,
+        eventDisplay: 'block',
+        eventShortHeight: 18,
+        eventMinHeight: 18,
+        eventMaxHeight: 18,
+        eventContent: function(arg) {
+            return {
+                html: `<div class="fc-event-main-frame">
+                    <div class="fc-event-title-container">
+                        <div class="fc-event-title">${arg.event.title}</div>
+                    </div>
+                </div>`
+            };
+        }
+    });
+    calendar.render();
+});
+</script>
+{% endblock %} 
