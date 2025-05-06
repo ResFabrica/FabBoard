@@ -9,7 +9,7 @@ urlpatterns = [
     path('register/', views.register, name='register'),
     path('register/invitation/<str:token>/', views.register_with_invitation, name='register_with_invitation'),
     path('login/', views.user_login, name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='dashboard'), name='logout'),
     path('profile/', views.profile, name='profile'),
     path('terms/', views.terms, name='terms'),
     path('fablabs/users/', views.fablab_users, name='fablab_users'),

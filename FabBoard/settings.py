@@ -38,9 +38,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'FabBoard',
     'fabmaintenance',
     'fabprojects',
     'fabusers',
+    'fabcalendar',
     'crispy_forms',
     'crispy_bootstrap5',
 ]
@@ -199,6 +201,11 @@ LOGGING = {
             'propagate': True,
         },
         'fabusers': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'fabcalendar': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': True,

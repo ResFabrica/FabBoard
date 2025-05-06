@@ -28,6 +28,7 @@
 
 {% block content %}
 <div class="container py-4">
+    {% csrf_token %}
     <div class="row mb-4">
         <div class="col">
             <h1 class="h3 mb-0">Administration des FabLabs</h1>
@@ -70,6 +71,92 @@
                                 <a href="{% url 'fabmaintenance:machine_list' %}?fablab={{ fablab.id }}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-cog me-1"></i> Machines
                                 </a>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ fablab.id }}">
+                                    <i class="fas fa-edit me-1"></i> Modifier
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#duplicateModal{{ fablab.id }}">
+                                    <i class="fas fa-copy me-1"></i> Dupliquer
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ fablab.id }}">
+                                    <i class="fas fa-trash me-1"></i> Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de modification -->
+                    <div class="modal fade" id="editModal{{ fablab.id }}" tabindex="-1" aria-labelledby="editModalLabel{{ fablab.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editModalLabel{{ fablab.id }}">Modifier {{ fablab.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="editForm{{ fablab.id }}">
+                                        <div class="mb-3">
+                                            <label for="editName{{ fablab.id }}" class="form-label">Nom du FabLab</label>
+                                            <input type="text" class="form-control" id="editName{{ fablab.id }}" value="{{ fablab.name }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="editAddress{{ fablab.id }}" class="form-label">Adresse</label>
+                                            <input type="text" class="form-control" id="editAddress{{ fablab.id }}" value="{{ fablab.address }}">
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="button" class="btn btn-primary" onclick="updateFabLab({{ fablab.id }})">Enregistrer</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de duplication -->
+                    <div class="modal fade" id="duplicateModal{{ fablab.id }}" tabindex="-1" aria-labelledby="duplicateModalLabel{{ fablab.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="duplicateModalLabel{{ fablab.id }}">Dupliquer {{ fablab.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="duplicateForm{{ fablab.id }}">
+                                        <div class="mb-3">
+                                            <label for="newName{{ fablab.id }}" class="form-label">Nom du nouveau FabLab</label>
+                                            <input type="text" class="form-control" id="newName{{ fablab.id }}" value="{{ fablab.name }} (copie)" required>
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="duplicateMachines{{ fablab.id }}" checked>
+                                            <label class="form-check-label" for="duplicateMachines{{ fablab.id }}">
+                                                Dupliquer les machines
+                                            </label>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="button" class="btn btn-success" onclick="duplicateFabLab({{ fablab.id }})">Dupliquer</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de suppression -->
+                    <div class="modal fade" id="deleteModal{{ fablab.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ fablab.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="deleteModalLabel{{ fablab.id }}">Supprimer {{ fablab.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Êtes-vous sûr de vouloir supprimer ce FabLab ? Cette action est irréversible.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="button" class="btn btn-danger" onclick="deleteFabLab({{ fablab.id }})">Supprimer</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -121,6 +208,92 @@
                                 <a href="{% url 'fabmaintenance:machine_list' %}?fablab={{ fablab.id }}" class="btn btn-sm btn-outline-secondary">
                                     <i class="fas fa-cog me-1"></i> Machines
                                 </a>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ fablab.id }}">
+                                    <i class="fas fa-edit me-1"></i> Modifier
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#duplicateModal{{ fablab.id }}">
+                                    <i class="fas fa-copy me-1"></i> Dupliquer
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ fablab.id }}">
+                                    <i class="fas fa-trash me-1"></i> Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de modification -->
+                    <div class="modal fade" id="editModal{{ fablab.id }}" tabindex="-1" aria-labelledby="editModalLabel{{ fablab.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editModalLabel{{ fablab.id }}">Modifier {{ fablab.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="editForm{{ fablab.id }}">
+                                        <div class="mb-3">
+                                            <label for="editName{{ fablab.id }}" class="form-label">Nom du FabLab</label>
+                                            <input type="text" class="form-control" id="editName{{ fablab.id }}" value="{{ fablab.name }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="editAddress{{ fablab.id }}" class="form-label">Adresse</label>
+                                            <input type="text" class="form-control" id="editAddress{{ fablab.id }}" value="{{ fablab.address }}">
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="button" class="btn btn-primary" onclick="updateFabLab({{ fablab.id }})">Enregistrer</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de duplication -->
+                    <div class="modal fade" id="duplicateModal{{ fablab.id }}" tabindex="-1" aria-labelledby="duplicateModalLabel{{ fablab.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="duplicateModalLabel{{ fablab.id }}">Dupliquer {{ fablab.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="duplicateForm{{ fablab.id }}">
+                                        <div class="mb-3">
+                                            <label for="newName{{ fablab.id }}" class="form-label">Nom du nouveau FabLab</label>
+                                            <input type="text" class="form-control" id="newName{{ fablab.id }}" value="{{ fablab.name }} (copie)" required>
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="duplicateMachines{{ fablab.id }}" checked>
+                                            <label class="form-check-label" for="duplicateMachines{{ fablab.id }}">
+                                                Dupliquer les machines
+                                            </label>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="button" class="btn btn-success" onclick="duplicateFabLab({{ fablab.id }})">Dupliquer</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal de suppression -->
+                    <div class="modal fade" id="deleteModal{{ fablab.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ fablab.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="deleteModalLabel{{ fablab.id }}">Supprimer {{ fablab.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Êtes-vous sûr de vouloir supprimer ce FabLab ? Cette action est irréversible.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="button" class="btn btn-danger" onclick="deleteFabLab({{ fablab.id }})">Supprimer</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -136,4 +309,103 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function duplicateFabLab(fablabId) {
+    const newName = document.getElementById(`newName${fablabId}`).value;
+    const duplicateMachines = document.getElementById(`duplicateMachines${fablabId}`).checked;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    console.log('Duplicating FabLab:', {
+        fablabId,
+        newName,
+        duplicateMachines,
+        csrftoken
+    });
+    
+    fetch(`/users/fablab/${fablabId}/duplicate/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            name: newName,
+            duplicate_machines: duplicateMachines
+        })
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Une erreur est survenue');
+    });
+}
+
+function deleteFabLab(fablabId) {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch(`/users/fablab/${fablabId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Une erreur est survenue');
+    });
+}
+
+function updateFabLab(fablabId) {
+    const newName = document.getElementById(`editName${fablabId}`).value;
+    const newAddress = document.getElementById(`editAddress${fablabId}`).value;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch(`/users/fablab/${fablabId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            name: newName,
+            address: newAddress
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Une erreur est survenue');
+    });
+}
+</script>
 {% endblock %} 

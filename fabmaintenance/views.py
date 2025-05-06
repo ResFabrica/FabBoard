@@ -18,6 +18,7 @@ from django.db.utils import IntegrityError
 from datetime import timedelta
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
+import json
 
 @login_required
 def machine_list(request):
@@ -1068,3 +1069,80 @@ def maintenance_create(request, machine_id):
         'machine': machine,
         'fablab': fablab
     })
+
+@login_required
+def machine_duplicate(request, pk):
+    """Vue pour dupliquer une machine."""
+    machine = get_object_or_404(Machine, pk=pk)
+    
+    # Vérifier les permissions
+    if not request.user.is_superuser and machine.fablab not in request.user.fablabs.all():
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        new_name = data.get('name', f"{machine.name} (copie)")
+        duplicate_maintenance = data.get('duplicate_maintenance', True)
+        
+        # Vérifier si le nom existe déjà dans le même FabLab
+        if Machine.objects.filter(name=new_name, fablab=machine.fablab).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Une machine avec ce nom existe déjà dans ce FabLab'
+            }, status=400)
+        
+        # Créer une copie de la machine
+        new_machine = Machine.objects.create(
+            name=new_name,
+            machine_type=machine.machine_type,
+            template=machine.template,
+            fablab=machine.fablab,
+            serial_number=f"{machine.serial_number} (copie)" if machine.serial_number else None,
+            image=machine.image if machine.image else None
+        )
+        
+        # Dupliquer les maintenances si demandé
+        if duplicate_maintenance:
+            for maintenance in machine.maintenance_set.all():
+                new_maintenance = Maintenance.objects.create(
+                    machine=new_machine,
+                    maintenance_type=maintenance.maintenance_type,
+                    scheduled_date=maintenance.scheduled_date,
+                    notes=maintenance.notes,
+                    scheduling_type=maintenance.scheduling_type,
+                    period_days=maintenance.period_days,
+                    custom_type_name=maintenance.custom_type_name,
+                    significant=maintenance.significant,
+                    instructions=maintenance.instructions,
+                    required_tools=maintenance.required_tools
+                )
+        
+        return JsonResponse({'success': True})
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid data'}, status=400)
+
+@login_required
+def validate_maintenance(request, maintenance_id):
+    """Vue pour valider une maintenance."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
+    
+    try:
+        maintenance = Maintenance.objects.get(id=maintenance_id)
+        
+        # Vérifier que l'utilisateur a accès au FabLab
+        if not request.user.is_superuser and maintenance.machine.fablab not in request.user.fablabs.all():
+            return JsonResponse({'success': False, 'error': 'Permission refusée'}, status=403)
+        
+        # Vérifier que la maintenance n'est pas déjà validée
+        if maintenance.completed_date:
+            return JsonResponse({'success': False, 'error': 'Cette maintenance est déjà validée'}, status=400)
+        
+        # Valider la maintenance
+        maintenance.completed_date = timezone.now()
+        maintenance.completed_by = request.user
+        maintenance.save()
+        
+        return JsonResponse({'success': True})
+    except Maintenance.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Maintenance non trouvée'}, status=404)

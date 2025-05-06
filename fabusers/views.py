@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from .forms import UserRegistrationForm
 from .models import FabLab
-from fabmaintenance.models import Machine
+from fabmaintenance.models import Machine, Maintenance
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count
@@ -25,7 +25,7 @@ def register(request):
             user = form.save()
             login(request, user)
             messages.success(request, 'Inscription réussie !')
-            return redirect('home')
+            return redirect('dashboard')
     else:
         form = UserRegistrationForm()
     return render(request, 'fabusers/register.html', {'form': form})
@@ -39,10 +39,15 @@ def user_login(request):
             user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
+                # Gérer l'option "Se souvenir de moi"
+                if request.POST.get('remember'):
+                    # Définir la durée de la session à 30 jours
+                    request.session.set_expiry(30 * 24 * 60 * 60)
+                else:
+                    # Session expire à la fermeture du navigateur
+                    request.session.set_expiry(0)
                 messages.success(request, f'Bienvenue, {username} !')
-                return redirect('home')
-            else:
-                messages.error(request, 'Nom d\'utilisateur ou mot de passe invalide.')
+                return redirect('dashboard')
     else:
         form = AuthenticationForm()
     return render(request, 'fabusers/login.html', {'form': form})
@@ -126,12 +131,13 @@ def search_users(request):
     users_data = [{
         'id': user.id,
         'username': user.username,
-        'full_name': user.get_full_name(),
+        'full_name': user.get_full_name() or user.username,
         'email': user.email,
         'phone': user.profile.phone if hasattr(user, 'profile') else None,
         'is_staff': user.is_staff,
         'is_superuser': user.is_superuser,
-        'last_activity': user.profile.last_activity.strftime('%Y-%m-%d %H:%M:%S') if hasattr(user, 'profile') and user.profile.last_activity else None
+        'last_activity': user.profile.last_activity.strftime('%Y-%m-%d %H:%M:%S') if hasattr(user, 'profile') and user.profile.last_activity else None,
+        'avatar_color': user.profile.avatar_color if hasattr(user, 'profile') else '#6c757d'
     } for user in users]
     
     return JsonResponse({'users': users_data})
@@ -456,7 +462,7 @@ def update_fablab(request, fablab_id):
 
 @login_required
 def duplicate_fablab(request, fablab_id):
-    """Vue pour dupliquer un FabLab avec ses machines."""
+    """Vue pour dupliquer un FabLab avec ses machines et leurs maintenances."""
     if not request.user.is_superuser and not request.user.admin_fablabs.filter(id=fablab_id).exists():
         return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
     
@@ -484,6 +490,9 @@ def duplicate_fablab(request, fablab_id):
         
         # Dupliquer les machines si demandé
         if data.get('duplicate_machines', False):
+            # Créer un dictionnaire pour mapper les anciennes machines aux nouvelles
+            machine_mapping = {}
+            
             for machine in original_fablab.machine_set.all():
                 # Créer une copie de la machine
                 new_machine = Machine.objects.create(
@@ -494,6 +503,22 @@ def duplicate_fablab(request, fablab_id):
                     serial_number=f"{machine.serial_number} (copie)" if machine.serial_number else None,
                     image=machine.image if machine.image else None
                 )
+                machine_mapping[machine.id] = new_machine
+                
+                # Dupliquer les maintenances de la machine
+                for maintenance in machine.maintenance_set.all():
+                    new_maintenance = Maintenance.objects.create(
+                        machine=new_machine,
+                        maintenance_type=maintenance.maintenance_type,
+                        scheduled_date=maintenance.scheduled_date,
+                        notes=maintenance.notes,
+                        scheduling_type=maintenance.scheduling_type,
+                        period_days=maintenance.period_days,
+                        custom_type_name=maintenance.custom_type_name,
+                        significant=maintenance.significant,
+                        instructions=maintenance.instructions,
+                        required_tools=maintenance.required_tools
+                    )
         
         return JsonResponse({'success': True})
     except FabLab.DoesNotExist:
@@ -557,7 +582,7 @@ def register_with_invitation(request, token):
             
             login(request, user)
             messages.success(request, f'Bienvenue dans {fablab.name} !')
-            return redirect('home')
+            return redirect('dashboard')
     else:
         form = UserRegistrationForm()
 

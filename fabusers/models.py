@@ -43,6 +43,8 @@ class UserProfile(models.Model):
     fablab = models.ForeignKey(FabLab, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="FabLab principal")
     last_activity = models.DateTimeField(auto_now=True, verbose_name="Dernière activité")
     avatar_color = models.CharField(max_length=7, default='#007bff', verbose_name="Couleur de l'avatar")
+    show_completed_tasks = models.BooleanField(default=True, verbose_name="Afficher les tâches complétées")
+    expanded_sections = models.JSONField(default=dict, blank=True, verbose_name="Sections déroulées")
 
     def __str__(self):
         return f"Profil de {self.user.username}"

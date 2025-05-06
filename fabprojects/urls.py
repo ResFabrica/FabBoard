@@ -59,4 +59,6 @@ urlpatterns = [
     path('fablab-tasks/', views.fablab_tasks, name='fablab_tasks'),
     path('tasks/update-field/', views.update_task_field, name='update_task_field'),
     path('task-file/<int:file_id>/delete/', views.task_file_delete, name='task_file_delete'),
+    path('update-show-completed/', views.update_show_completed, name='update_show_completed'),
+    path('update-expanded-sections/', views.update_expanded_sections, name='update_expanded_sections'),
 ] 

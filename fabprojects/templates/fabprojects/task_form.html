@@ -1,5 +1,10 @@
 {% extends 'fabprojects/form_base.html' %}
 
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+{% endblock %}
+
 {% block help_text %}
 <div class="card">
     <div class="card-header">
@@ -21,8 +26,20 @@
 
 {% block extra_js %}
 {{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialiser EasyMDE pour le champ description
+        const easyMDE = new EasyMDE({
+            element: document.getElementById('id_description'),
+            spellChecker: false,
+            status: false,
+            toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', 'image', '|', 'preview'],
+            placeholder: 'Décrivez la tâche en utilisant Markdown...',
+            autofocus: false,
+            minHeight: '200px'
+        });
+
         // Initialiser Select2 pour les utilisateurs assignés
         $('#id_assigned_users').select2({
             theme: 'bootstrap-5',

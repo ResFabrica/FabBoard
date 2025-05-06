@@ -77,11 +77,46 @@
                                 <a href="{% url 'fabmaintenance:machine_edit' machine.pk %}" class="btn btn-outline-secondary">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <button type="button" class="btn btn-outline-success" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#duplicateModal{{ machine.pk }}">
+                                    <i class="fas fa-copy"></i>
+                                </button>
                                 <a href="{% url 'fabmaintenance:machine_delete' machine.pk %}" 
                                    class="btn btn-outline-danger"
                                    onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette machine ?')">
                                     <i class="fas fa-trash"></i>
                                 </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de duplication -->
+                <div class="modal fade" id="duplicateModal{{ machine.pk }}" tabindex="-1" aria-labelledby="duplicateModalLabel{{ machine.pk }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="duplicateModalLabel{{ machine.pk }}">Dupliquer {{ machine.name }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="duplicateForm{{ machine.pk }}">
+                                    <div class="mb-3">
+                                        <label for="newName{{ machine.pk }}" class="form-label">Nom de la nouvelle machine</label>
+                                        <input type="text" class="form-control" id="newName{{ machine.pk }}" value="{{ machine.name }} (copie)" required>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="duplicateMaintenance{{ machine.pk }}" checked>
+                                        <label class="form-check-label" for="duplicateMaintenance{{ machine.pk }}">
+                                            Dupliquer les maintenances
+                                        </label>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="button" class="btn btn-success" onclick="duplicateMachine({{ machine.pk }})">Dupliquer</button>
                             </div>
                         </div>
                     </div>
@@ -96,4 +131,38 @@
     </div>
     {% endfor %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function duplicateMachine(machineId) {
+    const newName = document.getElementById(`newName${machineId}`).value;
+    const duplicateMaintenance = document.getElementById(`duplicateMaintenance${machineId}`).checked;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch(`/maintenance/machines/${machineId}/duplicate/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            name: newName,
+            duplicate_maintenance: duplicateMaintenance
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Une erreur est survenue');
+    });
+}
+</script>
 {% endblock %} 

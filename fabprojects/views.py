@@ -13,6 +13,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from datetime import datetime
 import logging
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,7 @@ def section_edit(request, section_id):
         if form.is_valid():
             form.save()
             messages.success(request, 'Section modifiée avec succès.')
-            return redirect('fabprojects:view_detail', view_id=section.view.id)
+            return redirect('fabprojects:view_list')
     else:
         form = SectionForm(instance=section)
     
@@ -1195,12 +1196,46 @@ def update_task_users(request, task_id):
         if not request.user.is_superuser and task.section.view.fablab not in request.user.fablabs.all():
             return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
         
-        # Mettre à jour les utilisateurs assignés
-        task.assigned_users.set(user_ids)
+        # Vérifier que les utilisateurs existent et appartiennent au bon fablab
+        User = get_user_model()
         
-        return JsonResponse({'status': 'success'})
+        # Convertir les IDs en entiers
+        try:
+            user_ids = [int(uid) for uid in user_ids]
+        except (ValueError, TypeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid user IDs'}, status=400)
+        
+        # Récupérer les utilisateurs valides
+        valid_users = User.objects.filter(
+            id__in=user_ids,
+            fablabs=task.section.view.fablab
+        )
+        
+        if len(valid_users) != len(user_ids):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Some users are not found or do not belong to this fablab'
+            }, status=400)
+        
+        # Mettre à jour les utilisateurs assignés
+        task.assigned_users.set(valid_users)
+        
+        # Préparer les données de réponse
+        response_data = {
+            'status': 'success',
+            'users': [{
+                'id': user.id,
+                'text': user.get_full_name() or user.username,
+                'avatar_color': user.profile.avatar_color if hasattr(user, 'profile') else '#6c757d'
+            } for user in valid_users]
+        }
+        
+        return JsonResponse(response_data)
+        
     except Task.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Task not found'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
@@ -1318,5 +1353,37 @@ def section_move(request, section_id):
         
         return JsonResponse({'success': True})
         
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+@require_POST
+def update_show_completed(request):
+    """Met à jour la préférence de visibilité des tâches complétées."""
+    try:
+        data = json.loads(request.body)
+        show_completed = data.get('show_completed', True)
+        
+        # Mettre à jour la préférence de l'utilisateur
+        request.user.profile.show_completed_tasks = show_completed
+        request.user.profile.save()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+@require_POST
+def update_expanded_sections(request):
+    """Met à jour les préférences de sections déroulées de l'utilisateur."""
+    try:
+        data = json.loads(request.body)
+        expanded_sections = data.get('expanded_sections', {})
+        
+        # Mettre à jour la préférence de l'utilisateur
+        request.user.profile.expanded_sections = expanded_sections
+        request.user.profile.save()
+        
+        return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})

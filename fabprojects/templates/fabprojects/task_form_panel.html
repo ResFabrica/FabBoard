@@ -1,5 +1,7 @@
 {% load crispy_forms_tags %}
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+
 <script>
 // Définir la fonction deleteFile avant son utilisation
 function deleteFile(event, fileId, url) {
@@ -88,6 +90,28 @@ function deleteFile(event, fileId, url) {
 .offcanvas-body {
     position: relative;
 }
+
+/* Styles pour EasyMDE */
+.EasyMDEContainer {
+    border-radius: 0.375rem;
+}
+
+.EasyMDEContainer .editor-toolbar {
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    border-color: #dee2e6;
+}
+
+.EasyMDEContainer .CodeMirror {
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+    border-color: #dee2e6;
+}
+
+.EasyMDEContainer .editor-preview {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
 </style>
 
 <div class="offcanvas-header">
@@ -127,8 +151,15 @@ function deleteFile(event, fileId, url) {
             <button type="button" class="btn btn-secondary" data-bs-dismiss="offcanvas">Annuler</button>
         </div>
     </form>
+
+    <select class="form-control select2-users d-none" multiple style="display: none !important;">
+        {% for user in task.assigned_users.all %}
+            <option value="{{ user.id }}" selected data-avatar-color="{{ user.profile.avatar_color|default:'#6c757d' }}">{{ user.get_full_name|default:user.username }}</option>
+        {% endfor %}
+    </select>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 <script>
 // Attendre que le panneau soit chargé
 const taskFormPanel = document.getElementById('taskFormPanel');
@@ -139,6 +170,88 @@ if (taskFormPanel) {
         const errorMessage = document.querySelector('.error-message');
         const dateInput = document.querySelector('input[type="date"]');
         const fileInput = document.querySelector('input[type="file"]');
+
+        // Initialiser EasyMDE pour le champ description
+        const descriptionTextarea = document.querySelector('textarea[data-editor="markdown"]');
+        if (descriptionTextarea) {
+            const easyMDE = new EasyMDE({
+                element: descriptionTextarea,
+                spellChecker: false,
+                status: false,
+                toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', 'image', '|', 'preview'],
+                placeholder: 'Décrivez la tâche en utilisant Markdown...',
+                autofocus: false,
+                minHeight: '200px',
+                maxHeight: '400px'
+            });
+        }
+
+        // Initialiser Select2 pour les utilisateurs assignés
+        const assignedUsersSelect = $('#id_assigned_users');
+        const initialUsers = assignedUsersSelect.find('option:selected').map(function() {
+            return {
+                id: $(this).val(),
+                text: $(this).text(),
+                avatar_color: $(this).data('avatar-color') || '#6c757d'
+            };
+        }).get();
+
+        assignedUsersSelect.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: panel,
+            minimumInputLength: 2,
+            data: initialUsers,
+            ajax: {
+                url: '{% url "fabusers:search_users" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term,
+                        fablab_id: '{{ view.fablab.id }}'
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.users.map(function(user) {
+                            return {
+                                id: user.id,
+                                text: user.full_name || user.username,
+                                avatar_color: user.avatar_color || '#6c757d',
+                                email: user.email
+                            };
+                        })
+                    };
+                },
+                cache: true
+            },
+            templateResult: function(user) {
+                if (!user.id) return user.text;
+                return $(`
+                    <div class="d-flex align-items-center">
+                        <div class="me-2">
+                            <i class="fas fa-user-circle" style="color: ${user.avatar_color}"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold">${user.text}</div>
+                            <small class="text-muted">${user.email}</small>
+                        </div>
+                    </div>
+                `);
+            },
+            templateSelection: function(user) {
+                if (!user.id) return user.text;
+                return $(`
+                    <div class="d-flex align-items-center">
+                        <div class="me-2">
+                            <i class="fas fa-user-circle" style="color: ${user.avatar_color}"></i>
+                        </div>
+                        <div>${user.text}</div>
+                    </div>
+                `);
+            }
+        });
 
         // Attacher les event listeners aux boutons de suppression
         document.querySelectorAll('.delete-file').forEach(button => {

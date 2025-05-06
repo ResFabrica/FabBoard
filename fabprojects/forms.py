@@ -202,9 +202,21 @@ class TaskForm(forms.ModelForm):
         fields = ['title', 'description', 'deadline', 'assigned_users', 'tags']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'data-editor': 'markdown',
+                'rows': 10,
+                'placeholder': 'Décrivez la tâche en utilisant Markdown...'
+            }),
             'deadline': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'assigned_users': forms.SelectMultiple(attrs={'class': 'form-control select2'}),
+        }
+        labels = {
+            'title': 'Titre',
+            'description': 'Description',
+            'deadline': 'Date limite',
+            'assigned_users': 'Utilisateurs assignés',
+            'tags': 'Tags'
         }
     
     def __init__(self, *args, section=None, fablab=None, **kwargs):

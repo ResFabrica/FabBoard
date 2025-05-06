@@ -11,7 +11,7 @@ bcrypt==3.2.0
 PyJWT==2.3.0
 python-dateutil==2.9.0.post0
 pytz==2022.1
-markdown==3.7
+markdown==3.5.2
 bleach==6.1.0
 gunicorn==21.2.0
 whitenoise==6.6.0

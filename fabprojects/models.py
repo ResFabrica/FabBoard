@@ -85,7 +85,7 @@ class Task(models.Model):
         super().save(*args, **kwargs)
 
     class Meta:
-        ordering = ['order', 'deadline', 'created_at']
+        ordering = ['-created_at', 'order', 'deadline']
 
 class SubTask(models.Model):
     title = models.CharField(max_length=200)

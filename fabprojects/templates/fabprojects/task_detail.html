@@ -1,4 +1,68 @@
 {% extends 'fabprojects/base_projects.html' %}
+{% load fabprojects_filters %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.css">
+<style>
+.markdown-body {
+    color: #24292e;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    color: #24292e;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.markdown-body p {
+    margin-bottom: 1rem;
+}
+
+.markdown-body code {
+    background-color: #e9ecef;
+    color: #24292e;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+}
+
+.markdown-body pre {
+    background-color: #e9ecef;
+    padding: 1rem;
+    border-radius: 3px;
+}
+
+.markdown-body blockquote {
+    border-left: 4px solid #dee2e6;
+    padding-left: 1rem;
+    color: #6c757d;
+}
+
+.markdown-body table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+    border: 1px solid #dee2e6;
+    padding: 0.5rem;
+}
+
+.markdown-body table th {
+    background-color: #e9ecef;
+}
+</style>
+{% endblock %}
 
 {% block project_content %}
 <div class="container-fluid">
@@ -58,8 +122,12 @@
                         <h6 class="text-muted mb-3">
                             <i class="fas fa-align-left me-2"></i>Description
                         </h6>
-                        <div class="p-3 bg-light rounded">
-                            {{ task.description|linebreaks|default:"<em class='text-muted'>Aucune description</em>" }}
+                        <div class="p-3 bg-light rounded markdown-body">
+                            {% if task.description %}
+                                {{ task.description|markdown|safe }}
+                            {% else %}
+                                <em class='text-muted'>Aucune description</em>
+                            {% endif %}
                         </div>
                     </div>
 

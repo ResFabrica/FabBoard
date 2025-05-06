@@ -18,14 +18,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
+from .views import DashboardView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', RedirectView.as_view(url='/maintenance/machines/', permanent=False), name='home'),
+    path('', DashboardView.as_view(), name='dashboard'),
     path('maintenance/', include('fabmaintenance.urls')),
     path('projects/', include('fabprojects.urls')),
     path('users/', include('fabusers.urls')),
+    path('calendar/', include('fabcalendar.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler404 = 'fabmaintenance.views.handler404'
