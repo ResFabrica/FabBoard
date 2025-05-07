@@ -61,6 +61,7 @@ L'application sera accessible à l'adresse http://localhost:8000
 - `fabusers/` : Gestion des utilisateurs et des FabLabs
 - `fabprojects/` : Gestion des projets et des tâches
 - `fabmaintenance/` : Gestion de la maintenance des machines
+- `fabcalendar/` : Gestion des événements et du calendrier
 - `static/` : Fichiers statiques (CSS, JavaScript, images)
 - `media/` : Fichiers uploadés par les utilisateurs
 - `templates/` : Templates HTML
