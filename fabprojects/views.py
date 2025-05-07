@@ -289,38 +289,21 @@ def task_create(request, section_id):
         raise PermissionDenied
     
     if request.method == 'POST':
-        logger.info("=== Début de la création de tâche ===")
-        logger.info(f"Content-Type: {request.content_type}")
-        logger.info(f"Files in request.FILES: {request.FILES}")
-        for key, file in request.FILES.items():
-            logger.info(f"File '{key}': name={file.name}, size={file.size}, content_type={file.content_type}")
-        logger.info(f"POST data: {request.POST}")
-        
         form = TaskForm(request.POST, request.FILES, section=section, fablab=section.view.fablab)
         if form.is_valid():
-            logger.info("Form is valid")
-            logger.info(f"Cleaned data: {form.cleaned_data}")
             try:
                 task = form.save()
-                logger.info("Task saved successfully")
-                logger.info(f"Created task ID: {task.id}")
-                if task.files.exists():
-                    logger.info("Attached files:")
-                    for file in task.files.all():
-                        logger.info(f"- {file.filename} ({file.file_type}, {file.file_size} bytes)")
                 messages.success(request, 'Tâche créée avec succès.')
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
                 return redirect('fabprojects:view_detail', view_id=section.view.id)
             except Exception as e:
-                logger.error(f"Error saving task: {str(e)}", exc_info=True)
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': False,
                         'errors': {'__all__': [str(e)]}
                     })
         else:
-            logger.error(f"Form validation errors: {form.errors}")
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
@@ -341,157 +324,37 @@ def task_create(request, section_id):
 @login_required
 def task_edit(request, task_id):
     """Modifier une tâche existante."""
-    logger.info("\n=== DÉBUT DE LA REQUÊTE D'ÉDITION DE TÂCHE ===")
-    logger.info(f"Task ID: {task_id}")
-    logger.info(f"User: {request.user.username} (ID: {request.user.id})")
-    logger.info(f"Method: {request.method}")
-    logger.info(f"Content-Type: {request.content_type}")
-    
     task = get_object_or_404(Task, id=task_id)
     
-    # Log des informations originales de la tâche
-    logger.info("\n=== VALEURS ORIGINALES DE LA TÂCHE ===")
-    logger.info(f"Titre: {task.title}")
-    logger.info(f"Description: {task.description}")
-    logger.info(f"Date limite: {task.deadline}")
-    logger.info(f"Terminée: {task.is_completed}")
-    
-    # Log détaillé des tags originaux
-    tags_originaux = list(task.tags.all())
-    logger.info(f"Tags originaux ({len(tags_originaux)}):")
-    for tag in tags_originaux:
-        logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
-    
-    # Log des utilisateurs assignés originaux
-    users_originaux = list(task.assigned_users.all())
-    logger.info(f"Utilisateurs assignés originaux ({len(users_originaux)}):")
-    for user in users_originaux:
-        logger.info(f"  - ID: {user.id}, Username: {user.username}")
-    
     if not task.section.view.fablab.users.filter(id=request.user.id).exists():
-        logger.warning(f"Accès refusé: l'utilisateur {request.user.username} n'a pas accès à cette tâche")
         raise PermissionDenied
     
     if request.method == 'POST':
-        logger.info("\n=== DÉTAILS DE LA REQUÊTE POST ===")
-        
-        # Log des données POST spécifiques liées aux dates et tags
-        logger.info("\n=== DONNÉES POST SPÉCIFIQUES ===")
-        if 'deadline' in request.POST:
-            logger.info(f"Deadline soumise: {request.POST.get('deadline')}")
-        else:
-            logger.info("Aucune deadline soumise")
-            
-        if 'tags' in request.POST:
-            tags_soumis = request.POST.getlist('tags')
-            logger.info(f"Tags soumis: {tags_soumis}")
-        else:
-            logger.info("Aucun tag soumis")
-        
-        logger.info(f"POST data complète: {dict(request.POST)}")
-        logger.info(f"FILES data: {dict(request.FILES)}")
-        
         form = TaskForm(request.POST, request.FILES, instance=task, section=task.section)
-        logger.info(f"Formulaire créé avec succès")
         
         if form.is_valid():
-            logger.info("\n=== FORMULAIRE VALIDE ===")
-            logger.info(f"Cleaned data: {form.cleaned_data}")
-            
-            # Log détaillé des dates et tags validés
-            if 'deadline' in form.cleaned_data:
-                logger.info(f"Date limite validée: {form.cleaned_data.get('deadline')}")
-            
-            if 'tags' in form.cleaned_data:
-                tags_valides = list(form.cleaned_data.get('tags', []))
-                logger.info(f"Tags validés ({len(tags_valides)}):")
-                for tag in tags_valides:
-                    logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
-                
-                # Identifier les tags ajoutés et supprimés
-                tags_ajoutes = [tag for tag in tags_valides if tag not in tags_originaux]
-                tags_supprimes = [tag for tag in tags_originaux if tag not in tags_valides]
-                
-                if tags_ajoutes:
-                    logger.info(f"Tags ajoutés ({len(tags_ajoutes)}):")
-                    for tag in tags_ajoutes:
-                        logger.info(f"  + ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
-                
-                if tags_supprimes:
-                    logger.info(f"Tags supprimés ({len(tags_supprimes)}):")
-                    for tag in tags_supprimes:
-                        logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
-            
             try:
                 task = form.save()
-                logger.info("\n=== TÂCHE SAUVEGARDÉE AVEC SUCCÈS ===")
-                logger.info(f"ID de la tâche: {task.id}")
-                logger.info(f"Titre: {task.title}")
-                logger.info(f"Date limite: {task.deadline}")
-                logger.info(f"Terminée: {task.is_completed}")
-                
-                # Log des tags finaux
-                tags_finaux = list(task.tags.all())
-                logger.info(f"Tags finaux ({len(tags_finaux)}):")
-                for tag in tags_finaux:
-                    logger.info(f"  - ID: {tag.id}, Nom: {tag.name}, Couleur: {tag.color}")
-                
-                # Log des utilisateurs assignés finaux
-                users_finaux = list(task.assigned_users.all())
-                logger.info(f"Utilisateurs assignés finaux ({len(users_finaux)}):")
-                for user in users_finaux:
-                    logger.info(f"  - ID: {user.id}, Username: {user.username}")
-                
-                if task.files.exists():
-                    logger.info("\n=== FICHIERS ATTACHÉS ===")
-                    for file in task.files.all():
-                        logger.info(f"- {file.filename} ({file.file_type}, {file.file_size} bytes)")
-                
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
                 
                 messages.success(request, 'Tâche modifiée avec succès.')
                 return redirect('fabprojects:task_detail', task_id=task.id)
             except Exception as e:
-                logger.error("\n=== ERREUR LORS DE LA SAUVEGARDE ===")
-                logger.error(f"Type d'erreur: {type(e)}")
-                logger.error(f"Message d'erreur: {str(e)}")
-                logger.error("Traceback:", exc_info=True)
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': False,
                         'errors': {'__all__': [str(e)]}
                     })
         else:
-            logger.error("\n=== ERREURS DE VALIDATION DU FORMULAIRE ===")
-            logger.error(f"Erreurs: {form.errors}")
-            
-            # Log détaillé des erreurs spécifiques aux dates et tags
-            if 'deadline' in form.errors:
-                logger.error(f"Erreurs de date limite: {form.errors['deadline']}")
-            
-            if 'tags' in form.errors:
-                logger.error(f"Erreurs de tags: {form.errors['tags']}")
-            
-            logger.error(f"Erreurs non liées aux champs: {form.non_field_errors()}")
-            
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
                     'errors': form.errors
                 })
     else:
-        logger.info("\n=== REQUÊTE GET - CHARGEMENT DU FORMULAIRE ===")
-        # Passer explicitement le fablab au formulaire pour s'assurer que les tags sont correctement filtrés
         fablab = task.section.view.fablab
-        logger.info(f"FabLab récupéré: {fablab.name} (ID: {fablab.id})")
         form = TaskForm(instance=task, section=task.section, fablab=fablab)
-        
-        # Vérifier que les tags sont correctement chargés
-        for field_name, field in form.fields.items():
-            if field_name == 'tags':
-                logger.info(f"Champ {field_name} - queryset contient {field.queryset.count()} tags")
-                logger.info(f"Tags disponibles dans la liste: {[f'{t.id}:{t.name}' for t in field.queryset]}")
     
     context = {
         'form': form,
@@ -509,8 +372,6 @@ def task_edit(request, task_id):
                 'color': tag.color or "#cccccc"
             })
         context['tags_data_json'] = json.dumps(tags_data)
-    
-    logger.info("\n=== FIN DE LA REQUÊTE D'ÉDITION DE TÂCHE ===")
     
     if request.GET.get('panel'):
         return render(request, 'fabprojects/task_form_panel.html', context)

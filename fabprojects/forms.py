@@ -138,47 +138,27 @@ class MultipleFileInput(Input):
     needs_multipart_form = True
     
     def __init__(self, attrs=None):
-        logger.info("\n=== MultipleFileInput.__init__ ===")
         default_attrs = {'multiple': True}
         if attrs:
-            logger.info(f"Attrs fournis: {attrs}")
             default_attrs.update(attrs)
-        logger.info(f"Attrs finaux: {default_attrs}")
         super().__init__(default_attrs)
 
     def get_context(self, name, value, attrs):
-        logger.info("\n=== MultipleFileInput.get_context ===")
-        logger.info(f"Name: {name}")
-        logger.info(f"Value: {value}")
-        logger.info(f"Attrs avant: {attrs}")
-        
         context = super().get_context(name, value, attrs)
         context['widget']['attrs'].update({
             'class': 'form-control',
             'accept': '.pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png,.gif'
         })
-        logger.info(f"Context final: {context}")
         return context
 
     def value_from_datadict(self, data, files, name):
-        logger.info("\n=== MultipleFileInput.value_from_datadict ===")
-        logger.info(f"Name: {name}")
-        logger.info(f"Data keys: {data.keys() if data else 'None'}")
-        logger.info(f"Files keys: {files.keys() if files else 'None'}")
-        logger.info(f"Files type: {type(files)}")
-        
         if not files:
-            logger.info("Pas de fichiers dans la requête")
             return []
             
         if hasattr(files, 'getlist'):
-            files_list = files.getlist(name)
-            logger.info(f"Files list from getlist: {files_list}")
-            return files_list
+            return files.getlist(name)
             
-        file = files.get(name)
-        logger.info(f"Single file from get: {file}")
-        return file
+        return files.get(name)
 
 class TagsModelMultipleChoiceField(forms.ModelMultipleChoiceField):
     """Champ personnalisé pour les tags qui affiche le nom plutôt que l'ID"""
@@ -220,16 +200,11 @@ class TaskForm(forms.ModelForm):
         }
     
     def __init__(self, *args, section=None, fablab=None, **kwargs):
-        import logging
-        logger = logging.getLogger(__name__)
-        
         self.section = section
         self.fablab = fablab or (section.view.fablab if section else None)
         
         # Vérifier si on a une instance existante
         instance = kwargs.get('instance')
-        logger.info(f"\n=== INITIALISATION DU FORMULAIRE TaskForm ===")
-        logger.info(f"Instance existante: {instance}")
         
         # Créer un dictionnaire initial pour tous les champs si pas déjà présent
         if instance and 'initial' not in kwargs:
@@ -237,17 +212,14 @@ class TaskForm(forms.ModelForm):
             
             # Préparer les tags
             tags_list = list(instance.tags.all().select_related('fablab'))
-            logger.info(f"Tags récupérés ({len(tags_list)}): {[tag.name for tag in tags_list]}")
             initial['tags'] = [tag.id for tag in tags_list]
             
             # Préparer les utilisateurs assignés
             users_list = list(instance.assigned_users.all())
-            logger.info(f"Utilisateurs assignés récupérés ({len(users_list)}): {[user.username for user in users_list]}")
             initial['assigned_users'] = [user.id for user in users_list]
             
             # Formater la date limite si elle existe
             if instance.deadline:
-                logger.info(f"Date limite récupérée: {instance.deadline}")
                 if isinstance(instance.deadline, datetime.datetime):
                     initial['deadline'] = instance.deadline.strftime('%Y-%m-%d')
             
@@ -257,45 +229,21 @@ class TaskForm(forms.ModelForm):
             
             # Définir les valeurs initiales pour le formulaire
             kwargs['initial'] = initial
-            logger.info(f"Valeurs initiales préparées: {initial}")
         
         super().__init__(*args, **kwargs)
         
         # S'assurer que le queryset des tags est correctement filtré par FabLab
         if self.fablab:
             self.fields['tags'].queryset = Tag.objects.filter(fablab=self.fablab)
-            logger.info(f"Tags disponibles: {self.fields['tags'].queryset.count()}")
-            
-            # Filtrer les utilisateurs assignables par FabLab
             self.fields['assigned_users'].queryset = self.fablab.users.all()
-            logger.info(f"Utilisateurs assignables: {self.fields['assigned_users'].queryset.count()}")
-        
-        # Log des valeurs initiales pour tous les champs
-        logger.info(f"Valeurs initiales finales:")
-        for field_name, field in self.fields.items():
-            logger.info(f"Champ '{field_name}' - valeur initiale: '{self.initial.get(field_name)}'")
-            if field_name in ['tags', 'assigned_users']:
-                values = self.initial.get(field_name, [])
-                if values:
-                    logger.info(f"  - IDs: {values}")
-                    if field_name == 'tags':
-                        tags = Tag.objects.filter(id__in=values)
-                        logger.info(f"  - Tags correspondants: {[f'{t.id}:{t.name}' for t in tags]}")
     
     def clean(self):
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        logger.info(f"\n=== CLEAN DU FORMULAIRE TaskForm ===")
         cleaned_data = super().clean()
         
         # Pour les tags créés via Select2 "tags: true", créer de nouveaux objets Tag
         if 'tags' in self.data:
-            logger.info(f"Tags dans les données soumises: {self.data.getlist('tags')}")
-            
             # Si des nouveaux tags ont été créés (valeurs qui ne sont pas des IDs)
             new_tag_names = [tag for tag in self.data.getlist('tags') if not tag.isdigit()]
-            logger.info(f"Nouveaux tags à créer: {new_tag_names}")
             
             # Créer les nouveaux tags et les ajouter à cleaned_data['tags']
             for tag_name in new_tag_names:
@@ -304,7 +252,6 @@ class TaskForm(forms.ModelForm):
                     fablab=self.fablab,
                     defaults={'name': tag_name}
                 )
-                logger.info(f"Tag '{tag_name}' {'créé' if created else 'existant'} - ID: {tag.id}")
                 
                 if 'tags' in cleaned_data:
                     if not isinstance(cleaned_data['tags'], list):
@@ -312,27 +259,16 @@ class TaskForm(forms.ModelForm):
                     if tag not in cleaned_data['tags']:
                         cleaned_data['tags'].append(tag)
         
-        logger.info(f"Tags après nettoyage: {cleaned_data.get('tags')}")
         return cleaned_data
     
     def save(self, commit=True):
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        logger.info(f"\n=== SAUVEGARDE DU FORMULAIRE TaskForm ===")
         task = super().save(commit=False)
         if self.section:
             task.section = self.section
         if commit:
-            logger.info(f"Sauvegarde de la tâche (commit=True)")
             task.save()
             if 'tags' in self.cleaned_data:
-                tags = self.cleaned_data['tags']
-                logger.info(f"Sauvegarde des tags: {[getattr(t, 'name', str(t)) for t in tags]}")
                 self.save_m2m()  # Sauvegarde des relations many-to-many, y compris les tags
-                logger.info(f"Tags assignés: {[t.name for t in task.tags.all()]}")
-        else:
-            logger.info(f"Tâche préparée sans commit")
         
         return task
 
