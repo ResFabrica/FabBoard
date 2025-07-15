@@ -27,6 +27,7 @@ urlpatterns = [
     path('projects/', include('fabprojects.urls')),
     path('users/', include('fabusers.urls')),
     path('calendar/', include('fabcalendar.urls')),
+    path('jobs/', include('fabjobs.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler404 = 'fabmaintenance.views.handler404'

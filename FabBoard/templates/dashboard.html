@@ -7,40 +7,33 @@
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
 <style>
-    body {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-    .content {
-        flex: 1 0 auto;
-    }
-    .footer {
-        flex-shrink: 0;
-    }
     .dashboard-card {
         height: 100%;
+        transition: transform 0.2s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
     }
     .maintenance-card {
-        border-left: 5px solid #dc3545;
+        border-left: 5px solid var(--danger-color);
     }
     .task-card {
-        border-left: 5px solid #28a745;
+        border-left: 5px solid var(--success-color);
     }
     .due-soon {
-        border-left: 5px solid #ffc107;
+        border-left: 5px solid var(--warning-color);
     }
     .overdue {
-        border-left: 5px solid #dc3545;
-    }
-    .card-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
+        border-left: 5px solid var(--danger-color);
     }
     .fablab-selector {
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
-    /* Styles pour le mini-calendrier */
+    .fablab-selector .btn {
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        margin-right: 0.5rem;
+    }
     .mini-calendar {
         height: 400px;
         margin: 0;
@@ -60,6 +53,7 @@
     .mini-calendar .fc-button {
         padding: 0.2rem 0.4rem !important;
         font-size: 0.8rem !important;
+        border-radius: 10px !important;
     }
     .mini-calendar .fc-daygrid-day {
         min-height: 2.5rem !important;
@@ -82,6 +76,7 @@
         padding: 1px 3px;
         margin: 1px 0;
         cursor: pointer;
+        border-radius: 5px;
     }
     .mini-calendar .fc-event-title {
         font-weight: normal;
@@ -110,137 +105,152 @@
     .mini-calendar .fc-scrollgrid-section > * {
         border-width: 0 !important;
     }
-    /* Ajustements pour le conteneur principal */
-    .container-fluid {
-        padding-bottom: 1rem;
-    }
-    .row:last-child {
-        margin-bottom: 0;
-    }
-    .card {
-        margin-bottom: 1rem;
-    }
-    /* Ajustements pour la carte du calendrier */
     .calendar-card {
         height: 450px;
         display: flex;
         flex-direction: column;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
     .calendar-card .card-body {
         flex: 1;
         overflow: hidden;
         padding: 0.5rem;
     }
+    .view-card {
+        height: 100%;
+        transition: all 0.3s;
+    }
+    .view-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .view-card .card-header {
+        background: white;
+        border-bottom: 1px solid #eee;
+    }
+    .view-card .list-group-item {
+        border-left: none;
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    .view-card .list-group-item:first-child {
+        border-top: none;
+    }
+    .view-card .list-group-item:last-child {
+        border-bottom: none;
+    }
+    .badge {
+        padding: 0.5em 0.75em;
+        border-radius: 8px;
+        font-weight: 500;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="content">
-    <div class="container-fluid">
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="fablab-selector">
-                    <div class="btn-group">
-                        {% for fablab in fablabs %}
-                        <a href="?fablab={{ fablab.id }}" 
-                           class="btn {% if selected_fablab.id == fablab.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                            {{ fablab.name }}
-                        </a>
-                        {% endfor %}
-                    </div>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="fablab-selector">
+                <div class="btn-group">
+                    {% for fablab in fablabs %}
+                    <a href="?fablab={{ fablab.id }}" 
+                       class="btn {% if selected_fablab.id == fablab.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        {{ fablab.name }}
+                    </a>
+                    {% endfor %}
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="row">
-            <!-- Vues de projet avec leurs tâches -->
-            <div class="col-12 mb-4">
-                <div class="card dashboard-card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-project-diagram text-info me-2"></i>
-                            Vues de projet
-                        </h5>
-                        <a href="{% url 'fabprojects:view_list' %}" class="btn btn-sm btn-outline-primary">
-                            Voir tout
-                        </a>
-                    </div>
-                    <div class="card-body">
-                        {% if active_views %}
-                            <div class="row">
-                                {% for view in active_views %}
-                                <div class="col-md-4 mb-3">
-                                    <div class="card h-100">
-                                        <div class="card-header">
-                                            <h6 class="card-title mb-0">{{ view.name }}</h6>
-                                            <small class="text-muted">
-                                                {{ view.sections.count }} section{{ view.sections.count|pluralize }}
-                                                • {{ view.tasks.count }} tâche{{ view.tasks.count|pluralize }}
-                                            </small>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            {% with view_tasks=current_tasks|filter_tasks_by_view:view %}
-                                            {% if view_tasks %}
-                                                <div class="list-group list-group-flush">
-                                                    {% for task in view_tasks %}
-                                                    <a href="{% url 'fabprojects:task_detail' task.id %}" 
-                                                        class="list-group-item list-group-item-action {% if task.deadline %}{% if task.is_overdue %}overdue{% elif task.is_due_soon %}due-soon{% endif %}{% endif %}">
-                                                        <div class="d-flex w-100 justify-content-between align-items-start">
-                                                            <h6 class="mb-1">{{ task.title }}</h6>
-                                                            {% if task.deadline %}
-                                                                <small class="text-muted">{{ task.deadline|date:"d/m/Y" }}</small>
-                                                            {% else %}
-                                                                <small class="text-muted"><i class="fas fa-clock"></i> {{ task.created_at|timesince }}</small>
-                                                            {% endif %}
-                                                        </div>
-                                                        <p class="mb-1 small">{{ task.description|truncatechars:50 }}</p>
-                                                        <div class="mt-1">
-                                                            {% for user in task.assigned_users.all %}
-                                                            <span class="badge" style="background-color: {{ user.profile.avatar_color|default:'#6c757d' }}">{{ user.get_full_name|default:user.username }}</span>
-                                                            {% endfor %}
-                                                        </div>
-                                                    </a>
-                                                    {% endfor %}
-                                                </div>
-                                            {% else %}
-                                                <p class="text-muted p-3 mb-0">Aucune tâche en cours</p>
-                                            {% endif %}
-                                            {% endwith %}
-                                        </div>
-                                        <div class="card-footer bg-transparent">
-                                            <a href="{% url 'fabprojects:view_detail' view.id %}" class="btn btn-sm btn-outline-primary">
-                                                Voir la vue
-                                            </a>
-                                        </div>
+    <div class="row">
+        <!-- Vues de projet avec leurs tâches -->
+        <div class="col-12 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-project-diagram text-info me-2"></i>
+                        Vues de projet
+                    </h5>
+                    <a href="{% url 'fabprojects:view_list' %}" class="btn btn-sm btn-outline-primary">
+                        Voir tout
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if active_views %}
+                        <div class="row">
+                            {% for view in active_views %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card view-card">
+                                    <div class="card-header">
+                                        <h6 class="card-title mb-0">{{ view.name }}</h6>
+                                        <small class="text-muted">
+                                            {{ view.sections.count }} section{{ view.sections.count|pluralize }}
+                                            • {{ view.tasks.count }} tâche{{ view.tasks.count|pluralize }}
+                                        </small>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        {% with view_tasks=current_tasks|filter_tasks_by_view:view %}
+                                        {% if view_tasks %}
+                                            <div class="list-group list-group-flush">
+                                                {% for task in view_tasks %}
+                                                <a href="{% url 'fabprojects:task_detail' task.id %}" 
+                                                    class="list-group-item list-group-item-action {% if task.deadline %}{% if task.is_overdue %}overdue{% elif task.is_due_soon %}due-soon{% endif %}{% endif %}">
+                                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                                        <h6 class="mb-1">{{ task.title }}</h6>
+                                                        {% if task.deadline %}
+                                                            <small class="text-muted">{{ task.deadline|date:"d/m/Y" }}</small>
+                                                        {% else %}
+                                                            <small class="text-muted"><i class="fas fa-clock"></i> {{ task.created_at|timesince }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                    <p class="mb-1 small">{{ task.description|truncatechars:50 }}</p>
+                                                    <div class="mt-1">
+                                                        {% for user in task.assigned_users.all %}
+                                                        <span class="badge" style="background-color: {{ user.profile.avatar_color|default:'#6c757d' }}">{{ user.get_full_name|default:user.username }}</span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </a>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted p-3 mb-0">Aucune tâche en cours</p>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="{% url 'fabprojects:view_detail' view.id %}" class="btn btn-sm btn-outline-primary">
+                                            Voir la vue
+                                        </a>
                                     </div>
                                 </div>
-                                {% endfor %}
                             </div>
-                        {% else %}
-                            <p class="text-muted">Aucune vue de projet</p>
-                        {% endif %}
-                    </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucune vue de projet</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Calendrier des événements -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card dashboard-card calendar-card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-calendar-alt text-primary me-2"></i>
-                            Calendrier des événements
-                        </h5>
-                        <a href="{% url 'fabcalendar:calendar' %}" class="btn btn-sm btn-outline-primary">
-                            Voir le calendrier complet
-                        </a>
-                    </div>
-                    <div class="card-body">
-                        <div id="calendar" class="mini-calendar"></div>
-                    </div>
+    <!-- Calendrier des événements -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card dashboard-card calendar-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt text-primary me-2"></i>
+                        Calendrier des événements
+                    </h5>
+                    <a href="{% url 'fabcalendar:calendar' %}" class="btn btn-sm btn-outline-primary">
+                        Voir le calendrier complet
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div id="calendar" class="mini-calendar"></div>
                 </div>
             </div>
         </div>

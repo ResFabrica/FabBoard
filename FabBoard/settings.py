@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'fabprojects',
     'fabusers',
     'fabcalendar',
+    'fabjobs',
     'crispy_forms',
     'crispy_bootstrap5',
 ]

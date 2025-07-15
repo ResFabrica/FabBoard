@@ -252,7 +252,7 @@ def section_edit(request, section_id):
         if form.is_valid():
             form.save()
             messages.success(request, 'Section modifiée avec succès.')
-            return redirect('fabprojects:view_list')
+            return redirect('fabprojects:view_detail', view_id=section.view.id)
     else:
         form = SectionForm(instance=section)
     
@@ -293,6 +293,28 @@ def task_create(request, section_id):
         if form.is_valid():
             try:
                 task = form.save()
+                
+                # Traiter les champs personnalisés
+                for field in section.view.custom_fields.all():
+                    field_name = f'custom_field_{field.id}'
+                    if field_name in request.POST:
+                        value = request.POST[field_name]
+                        
+                        # Valider et sauvegarder la valeur
+                        if field.field_type == 'boolean':
+                            if value == 'true':
+                                CustomFieldValue.objects.update_or_create(
+                                    task=task,
+                                    field=field,
+                                    defaults={'value': 'true'}
+                                )
+                        elif value:  # Pour les autres types, ne sauvegarder que si la valeur n'est pas vide
+                            CustomFieldValue.objects.update_or_create(
+                                task=task,
+                                field=field,
+                                defaults={'value': value}
+                            )
+                
                 messages.success(request, 'Tâche créée avec succès.')
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
@@ -315,7 +337,9 @@ def task_create(request, section_id):
     context = {
         'form': form,
         'section': section,
-        'title': 'Nouvelle Tâche'
+        'title': 'Nouvelle Tâche',
+        'view': section.view,  # Ajouter la vue au contexte
+        'custom_fields': section.view.custom_fields.all()  # Utiliser les champs personnalisés de la vue
     }
     if request.GET.get('panel'):
         return render(request, 'fabprojects/task_form_panel.html', context)
@@ -335,6 +359,34 @@ def task_edit(request, task_id):
         if form.is_valid():
             try:
                 task = form.save()
+                
+                # Traiter les champs personnalisés
+                for field in task.section.view.custom_fields.all():
+                    field_name = f'custom_field_{field.id}'
+                    if field_name in request.POST:
+                        value = request.POST[field_name]
+                        
+                        # Valider et sauvegarder la valeur
+                        if field.field_type == 'boolean':
+                            if value == 'true':
+                                CustomFieldValue.objects.update_or_create(
+                                    task=task,
+                                    field=field,
+                                    defaults={'value': 'true'}
+                                )
+                            else:
+                                # Supprimer la valeur si elle n'est pas cochée
+                                CustomFieldValue.objects.filter(task=task, field=field).delete()
+                        elif value:  # Pour les autres types, ne sauvegarder que si la valeur n'est pas vide
+                            CustomFieldValue.objects.update_or_create(
+                                task=task,
+                                field=field,
+                                defaults={'value': value}
+                            )
+                        else:
+                            # Supprimer la valeur si elle est vide
+                            CustomFieldValue.objects.filter(task=task, field=field).delete()
+                
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
                 
@@ -359,7 +411,9 @@ def task_edit(request, task_id):
     context = {
         'form': form,
         'task': task,
-        'title': 'Modifier la Tâche'
+        'title': 'Modifier la Tâche',
+        'view': task.section.view,  # Ajouter la vue au contexte
+        'custom_fields': task.section.view.custom_fields.all()  # Utiliser les champs personnalisés de la vue
     }
     
     # Ajouter les données des tags pour le JavaScript

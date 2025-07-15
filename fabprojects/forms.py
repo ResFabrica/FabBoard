@@ -198,6 +198,54 @@ class TaskForm(forms.ModelForm):
             'assigned_users': 'Utilisateurs assignés',
             'tags': 'Tags'
         }
+
+    def __init__(self, *args, **kwargs):
+        self.view = kwargs.pop('view', None)
+        super().__init__(*args, **kwargs)
+        
+        # Ajouter les champs personnalisés
+        if self.view and self.view.custom_fields.exists():
+            for field in self.view.custom_fields.all():
+                field_name = f'custom_field_{field.id}'
+                if field.field_type == 'boolean':
+                    self.fields[field_name] = forms.BooleanField(
+                        required=False,
+                        label=field.name,
+                        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+                    )
+                elif field.field_type == 'choice':
+                    choices = [(choice.strip(), choice.strip()) for choice in field.choices.split('\n') if choice.strip()]
+                    self.fields[field_name] = forms.ChoiceField(
+                        required=False,
+                        label=field.name,
+                        choices=[('', '---')] + choices,
+                        widget=forms.Select(attrs={'class': 'form-select'})
+                    )
+                elif field.field_type == 'date':
+                    self.fields[field_name] = forms.DateField(
+                        required=False,
+                        label=field.name,
+                        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+                    )
+                elif field.field_type == 'number':
+                    self.fields[field_name] = forms.FloatField(
+                        required=False,
+                        label=field.name,
+                        widget=forms.NumberInput(attrs={'class': 'form-control'})
+                    )
+                else:  # text
+                    self.fields[field_name] = forms.CharField(
+                        required=False,
+                        label=field.name,
+                        widget=forms.TextInput(attrs={'class': 'form-control'})
+                    )
+                
+                # Définir la valeur initiale si on modifie une tâche existante
+                if self.instance.pk:
+                    value = self.instance.custom_field_values.filter(field=field).first()
+                    if value:
+                        self.fields[field_name].initial = value.value
+
     
     def __init__(self, *args, section=None, fablab=None, **kwargs):
         self.section = section

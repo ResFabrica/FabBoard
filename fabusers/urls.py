@@ -22,6 +22,7 @@ urlpatterns = [
     path('fablab/<int:fablab_id>/bulk-add-admin/', views.bulk_add_admin, name='bulk_add_admin'),
     path('fablab/<int:fablab_id>/bulk-remove-users/', views.bulk_remove_users, name='bulk_remove_users'),
     path('profile/update-avatar-color/', views.update_avatar_color, name='update_avatar_color'),
+    path('profile/update-expanded-sections/', views.update_expanded_sections, name='update_expanded_sections'),
     path('fablab-admin/', views.fablab_admin, name='fablab_admin'),
     path('fablab/<int:fablab_id>/delete/', views.delete_fablab, name='delete_fablab'),
     path('fablab/<int:fablab_id>/duplicate/', views.duplicate_fablab, name='duplicate_fablab'),

@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Nouveau{% endif %} matériau{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">{% if form.instance.pk %}Modifier{% else %}Nouveau{% endif %} matériau</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Informations de base -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">Nom</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.name.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.unit.id_for_label }}" class="form-label">Unité</label>
+                                    {{ form.unit }}
+                                    {% if form.unit.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.unit.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Prix et CO2 -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.price_per_unit.id_for_label }}" class="form-label">Prix par unité (€)</label>
+                                    {{ form.price_per_unit }}
+                                    {% if form.price_per_unit.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.price_per_unit.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.co2_per_unit.id_for_label }}" class="form-label">CO2 par unité (kg)</label>
+                                    {{ form.co2_per_unit }}
+                                    {% if form.co2_per_unit.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.co2_per_unit.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Couleur</label>
+                                    <div class="d-flex align-items-center">
+                                        <div id="selectedColor" class="color-circle me-2" style="background-color: {{ form.instance.color|default:'#808080' }};"></div>
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#colorModal">
+                                            Choisir une couleur
+                                        </button>
+                                    </div>
+                                    {{ form.color.as_hidden }}
+                                    {% if form.color.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.color.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Types de machines et FabLab -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.machine_types.id_for_label }}" class="form-label">Types de machines</label>
+                                    {{ form.machine_types }}
+                                    {% if form.machine_types.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.machine_types.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.fablabs.id_for_label }}" class="form-label">FabLabs</label>
+                                    {{ form.fablabs }}
+                                    {% if form.fablabs.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.fablabs.errors }}
+                                    </div>
+                                    {% endif %}
+                                    <div class="form-check mt-2">
+                                        {{ form.all_fablabs }}
+                                        <label class="form-check-label" for="{{ form.all_fablabs.id_for_label }}">
+                                            {{ form.all_fablabs.label }}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                                    {{ form.description }}
+                                    {% if form.description.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.description.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Enregistrer
+                                </button>
+                                <a href="{% url 'fabjobs:material_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Annuler
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de sélection de couleur -->
+<div class="modal fade" id="colorModal" tabindex="-1" aria-labelledby="colorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="colorModalLabel">Choisir une couleur</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Saisie manuelle du code hexadécimal -->
+                <div class="mb-3">
+                    <label for="customColor" class="form-label">Code couleur personnalisé</label>
+                    <div class="input-group">
+                        <span class="input-group-text">#</span>
+                        <input type="text" class="form-control" id="customColor" maxlength="6" 
+                               placeholder="Ex: FF0000" pattern="[0-9A-Fa-f]{6}">
+                        <button class="btn btn-outline-secondary" type="button" id="applyCustomColor">
+                            Appliquer
+                        </button>
+                    </div>
+                    <div class="form-text">Entrez un code couleur hexadécimal (6 caractères)</div>
+                </div>
+
+                <hr class="my-3">
+
+                <!-- Grille de couleurs prédéfinies -->
+                <div class="color-grid">
+                    {% for color_value, _ in form.fields.color.choices %}
+                    <div class="color-option" data-color="{{ color_value }}">
+                        <div class="color-circle" style="background-color: {{ color_value }};"></div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .color-circle {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: inline-block;
+        border: 1px solid #ddd;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .color-circle:hover {
+        transform: scale(1.1);
+    }
+    .color-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 10px;
+        padding: 10px;
+    }
+    .color-option {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .color-option.selected .color-circle {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 2px #007bff;
+    }
+    #customColor {
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Désactiver la sélection multiple des FabLabs si "Tous" est coché
+    document.getElementById('{{ form.all_fablabs.id_for_label }}').addEventListener('change', function() {
+        var fablabsSelect = document.getElementById('{{ form.fablabs.id_for_label }}');
+        fablabsSelect.disabled = this.checked;
+        if (this.checked) {
+            fablabsSelect.value = '';
+        }
+    });
+
+    // Gestion du sélecteur de couleur
+    document.addEventListener('DOMContentLoaded', function() {
+        const colorInput = document.getElementById('{{ form.color.id_for_label }}');
+        const selectedColor = document.getElementById('selectedColor');
+        const colorOptions = document.querySelectorAll('.color-option');
+        const customColorInput = document.getElementById('customColor');
+        const applyCustomColorBtn = document.getElementById('applyCustomColor');
+
+        // Sélectionner la couleur initiale
+        const initialColor = colorInput.value;
+        colorOptions.forEach(option => {
+            if (option.dataset.color === initialColor) {
+                option.classList.add('selected');
+            }
+        });
+
+        // Gérer le clic sur une couleur prédéfinie
+        colorOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                const color = this.dataset.color;
+                updateSelectedColor(color);
+                
+                // Mettre à jour la sélection visuelle
+                colorOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                // Fermer le modal
+                bootstrap.Modal.getInstance(document.getElementById('colorModal')).hide();
+            });
+        });
+
+        // Gérer la saisie manuelle
+        customColorInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+
+        // Appliquer la couleur personnalisée
+        applyCustomColorBtn.addEventListener('click', function() {
+            const customColor = '#' + customColorInput.value;
+            if (/^#[0-9A-F]{6}$/i.test(customColor)) {
+                updateSelectedColor(customColor);
+                colorOptions.forEach(opt => opt.classList.remove('selected'));
+                bootstrap.Modal.getInstance(document.getElementById('colorModal')).hide();
+            } else {
+                alert('Veuillez entrer un code couleur hexadécimal valide (6 caractères)');
+            }
+        });
+
+        // Fonction pour mettre à jour la couleur sélectionnée
+        function updateSelectedColor(color) {
+            colorInput.value = color;
+            selectedColor.style.backgroundColor = color;
+        }
+    });
+</script>
+{% endblock %} 

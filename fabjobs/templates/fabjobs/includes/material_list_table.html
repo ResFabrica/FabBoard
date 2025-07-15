@@ -1,0 +1,38 @@
+{% for material in materials %}
+<tr>
+    <td>
+        <div class="color-circle" style="background-color: {{ material.color }};" 
+             title="{{ material.get_color_display }}"></div>
+    </td>
+    <td>{{ material.name }}</td>
+    <td>{{ material.get_unit_display }}</td>
+    <td>{{ material.price_per_unit|floatformat:2 }}€</td>
+    <td>{{ material.co2_per_unit|floatformat:2 }} kg</td>
+    <td>
+        {% for type in material.machine_types.all %}
+        <span class="badge bg-secondary">{{ type.name }}</span>
+        {% endfor %}
+    </td>
+    <td>
+        {% for fablab in material.fablabs.all %}
+        <span class="badge bg-primary">{{ fablab.name }}</span>
+        {% endfor %}
+    </td>
+    <td>
+        <div class="btn-group">
+            <a href="{% url 'fabjobs:material_update' material.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-edit"></i>
+            </a>
+            {% if user.is_superuser or user.is_fablab_admin %}
+            <a href="{% url 'fabjobs:material_delete' material.pk %}" class="btn btn-sm btn-outline-danger">
+                <i class="fas fa-trash"></i>
+            </a>
+            {% endif %}
+        </div>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="8" class="text-center">Aucun matériau trouvé</td>
+</tr>
+{% endfor %} 

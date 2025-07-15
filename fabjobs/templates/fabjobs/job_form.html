@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+.material-select-container {
+    position: relative;
+}
+
+.material-preview {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+select.material-select {
+    padding-left: 30px !important;
+}
+
+.material-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    min-height: 40px;
+}
+
+.material-color {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.select2-container--default .select2-results__option {
+    padding: 8px 12px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #e9ecef;
+}
+
+.select2-container--default .select2-selection--single {
+    height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 40px;
+    padding-left: 12px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 38px;
+}
+
+.select2-dropdown {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.select2-container--default .select2-results__option {
+    font-size: 14px;
+}
+
+.select2-container--default .select2-selection--single {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.select2-container--default .select2-selection--single:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Styles pour le select utilisateur */
+.select2-user-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: white;
+    font-weight: 500;
+}
+
+.user-badge .user-initials {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Informations de base -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">Nom</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.name.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.status.id_for_label }}" class="form-label">Statut</label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.status.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Machine et matériau -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.machine.id_for_label }}" class="form-label">Machine</label>
+                                {{ form.machine }}
+                                {% if form.machine.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.machine.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.material.id_for_label }}" class="form-label">Matériau</label>
+                                <div class="material-select-container">
+                                    {{ form.material }}
+                                    <div class="material-preview"></div>
+                                </div>
+                                {% if form.material.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.material.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Quantité et durée -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.quantity.id_for_label }}" class="form-label">Quantité</label>
+                                {{ form.quantity }}
+                                {% if form.quantity.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.quantity.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Durée estimée</label>
+                                <div class="row">
+                                    <div class="col-6">
+                                        {{ form.estimated_duration_hours }}
+                                        {% if form.estimated_duration_hours.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.estimated_duration_hours.errors|join:", " }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-6">
+                                        {{ form.estimated_duration_minutes }}
+                                        {% if form.estimated_duration_minutes.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.estimated_duration_minutes.errors|join:", " }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assignation -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.assigned_to.id_for_label }}" class="form-label">Assigné à</label>
+                                {{ form.assigned_to }}
+                                {% if form.assigned_to.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.assigned_to.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Description et notes -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.notes.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'fabjobs:job_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    // Données utilisateur
+    const userData = {{ user_data|safe }};
+
+    // Mise à jour dynamique des matériaux en fonction de la machine
+    function updateMaterialChoices(machineSelect) {
+        const machineId = machineSelect.value;
+        const materialSelect = $('#{{ form.material.id_for_label }}');
+        const materialContainer = materialSelect.closest('.mb-3');
+        
+        // Réinitialiser les options
+        materialSelect.empty().append('<option value="">---------</option>');
+        
+        // Supprimer les messages d'erreur existants
+        const existingError = materialContainer.find('.alert-danger');
+        if (existingError.length) {
+            existingError.remove();
+        }
+        
+        if (machineId) {
+            // Afficher un indicateur de chargement
+            const loadingDiv = $('<div>')
+                .addClass('alert alert-info mt-2')
+                .text('Chargement des matériaux...');
+            materialContainer.append(loadingDiv);
+            
+            // Faire une requête AJAX pour obtenir les matériaux compatibles
+            fetch(`{% url 'fabjobs:get_materials_for_machine' %}?machine=${machineId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur lors de la récupération des matériaux');
+                    }
+                    return response.json();
+                })
+                .then(materials => {
+                    // Supprimer l'indicateur de chargement
+                    loadingDiv.remove();
+                    
+                    if (materials.length === 0) {
+                        const noMaterialsDiv = $('<div>')
+                            .addClass('alert alert-warning mt-2')
+                            .text('Aucun matériau compatible avec cette machine');
+                        materialContainer.append(noMaterialsDiv);
+                    } else {
+                        materials.forEach(material => {
+                            const option = $('<option>')
+                                .val(material.id)
+                                .text(material.name)
+                                .data('price', material.price_per_unit)
+                                .data('co2', material.co2_per_unit)
+                                .data('color', material.color);
+                            materialSelect.append(option);
+                        });
+                        
+                        // Sélectionner automatiquement le premier matériau
+                        if (materials.length > 0) {
+                            materialSelect.val(materials[0].id);
+                            // Déclencher l'événement change pour mettre à jour Select2
+                            materialSelect.trigger('change');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    // Supprimer l'indicateur de chargement
+                    loadingDiv.remove();
+                    // Afficher un message d'erreur
+                    const errorDiv = $('<div>')
+                        .addClass('alert alert-danger mt-2')
+                        .text('Erreur lors du chargement des matériaux');
+                    materialContainer.append(errorDiv);
+                });
+        }
+    }
+
+    // Initialiser les champs
+    $(document).ready(function() {
+        const machineSelect = $('#{{ form.machine.id_for_label }}');
+        const materialSelect = $('#{{ form.material.id_for_label }}');
+        
+        // Initialiser Select2
+        materialSelect.select2({
+            templateResult: formatMaterialOption,
+            templateSelection: formatMaterialOption
+        });
+        
+        // Fonction pour formater les options
+        function formatMaterialOption(material) {
+            if (!material.id) {
+                return material.text;
+            }
+            
+            const color = $(material.element).data('color');
+            const $container = $(
+                '<div class="material-option">' +
+                    '<span class="material-color" style="background-color: ' + color + '"></span>' +
+                    '<span>' + material.text + '</span>' +
+                '</div>'
+            );
+            
+            return $container;
+        }
+        
+        // Mettre à jour les matériaux si une machine est déjà sélectionnée
+        if (machineSelect.val()) {
+            updateMaterialChoices(machineSelect[0]);
+        }
+
+        // Écouter les changements de machine
+        machineSelect.on('change', function() {
+            updateMaterialChoices(this);
+        });
+
+        // Écouter les changements de matériau pour mettre à jour les coûts
+        materialSelect.on('change', function() {
+            const selectedOption = $(this).find('option:selected');
+            if (selectedOption.length && selectedOption.data('price')) {
+                const quantity = $('#{{ form.quantity.id_for_label }}').val();
+                if (quantity) {
+                    const materialCost = parseFloat(selectedOption.data('price')) * parseFloat(quantity);
+                    const co2Emission = parseFloat(selectedOption.data('co2')) * parseFloat(quantity);
+                    // Vous pouvez ajouter ici la logique pour afficher ces valeurs
+                }
+            }
+        });
+
+        // Initialiser Select2 pour le champ utilisateur
+        const userSelect = $('#{{ form.assigned_to.id_for_label }}');
+        
+        userSelect.select2({
+            theme: 'default',
+            placeholder: 'Sélectionner un utilisateur',
+            allowClear: true,
+            width: '100%',
+            templateResult: formatUserOption,
+            templateSelection: formatUserSelection
+        });
+
+        // Fonction pour formater les options utilisateur
+        function formatUserOption(user) {
+            if (!user.id) {
+                return user.text;
+            }
+            
+            const userInfo = userData[user.id];
+            if (!userInfo) {
+                return user.text;
+            }
+            
+            return $('<div class="user-badge" style="background-color: ' + userInfo.color + '">' +
+                    '<span class="user-initials" style="background-color: ' + userInfo.color + '">' + userInfo.initials + '</span>' +
+                    userInfo.name +
+                    '</div>');
+        }
+
+        // Fonction pour formater la sélection
+        function formatUserSelection(user) {
+            if (!user.id) {
+                return user.text;
+            }
+            
+            const userInfo = userData[user.id];
+            if (!userInfo) {
+                return user.text;
+            }
+            
+            return $('<div class="user-badge" style="background-color: ' + userInfo.color + '">' +
+                    '<span class="user-initials" style="background-color: ' + userInfo.color + '">' + userInfo.initials + '</span>' +
+                    userInfo.name +
+                    '</div>');
+        }
+    });
+</script>
+{% endblock %} 

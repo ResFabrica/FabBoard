@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ job.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Informations du job -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{{ job.name }}</h5>
+                    <div class="btn-group">
+                        <a href="{% url 'fabjobs:job_update' job.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Modifier
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Machine</dt>
+                                <dd class="col-sm-8">{{ job.machine.name }}</dd>
+
+                                <dt class="col-sm-4">Matériau</dt>
+                                <dd class="col-sm-8">{{ job.material.name }}</dd>
+
+                                <dt class="col-sm-4">Quantité</dt>
+                                <dd class="col-sm-8">{{ job.quantity }} {{ job.material.get_unit_display }}</dd>
+
+                                <dt class="col-sm-4">Statut</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge {% if job.status == 'completed' %}bg-success
+                                                      {% elif job.status == 'in_progress' %}bg-primary
+                                                      {% elif job.status == 'pending' %}bg-warning
+                                                      {% else %}bg-danger{% endif %}">
+                                        {{ job.get_status_display }}
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-4">Créé par</dt>
+                                <dd class="col-sm-8">{{ job.created_by.get_full_name }}</dd>
+
+                                <dt class="col-sm-4">Assigné à</dt>
+                                <dd class="col-sm-8">{{ job.assigned_to.get_full_name|default:"-" }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Date de début</dt>
+                                <dd class="col-sm-8">{{ job.start_date|default:"-"|date:"d/m/Y H:i" }}</dd>
+
+                                <dt class="col-sm-4">Date de fin</dt>
+                                <dd class="col-sm-8">{{ job.end_date|default:"-"|date:"d/m/Y H:i" }}</dd>
+
+                                <dt class="col-sm-4">Durée estimée</dt>
+                                <dd class="col-sm-8">{{ job.estimated_duration|default:"-" }}</dd>
+
+                                <dt class="col-sm-4">Durée réelle</dt>
+                                <dd class="col-sm-8">{{ job.actual_duration|default:"-" }}</dd>
+
+                                <dt class="col-sm-4">Coût matière</dt>
+                                <dd class="col-sm-8">{{ job.material_cost|default:"-"|floatformat:2 }}€</dd>
+
+                                <dt class="col-sm-4">Coût énergie</dt>
+                                <dd class="col-sm-8">{{ job.energy_cost|default:"-"|floatformat:2 }}€</dd>
+
+                                <dt class="col-sm-4">Coût total</dt>
+                                <dd class="col-sm-8">{{ job.total_cost|default:"-"|floatformat:2 }}€</dd>
+
+                                <dt class="col-sm-4">Émission CO2</dt>
+                                <dd class="col-sm-8">{{ job.co2_emission|default:"-"|floatformat:2 }} kg</dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    {% if job.description %}
+                    <div class="mt-4">
+                        <h6>Description</h6>
+                        <p>{{ job.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if job.notes %}
+                    <div class="mt-4">
+                        <h6>Notes</h6>
+                        <p>{{ job.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Fichiers du job -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Fichiers</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Formulaire d'ajout de fichier -->
+                    <form method="post" enctype="multipart/form-data" class="mb-4">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ form.file.id_for_label }}" class="form-label">Fichier</label>
+                            {{ form.file }}
+                            {% if form.file.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.file.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.file_type.id_for_label }}" class="form-label">Type</label>
+                            {{ form.file_type }}
+                            {% if form.file_type.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.file_type.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Ajouter
+                        </button>
+                    </form>
+
+                    <!-- Liste des fichiers -->
+                    <div class="list-group">
+                        {% for file in files %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ file.get_file_type_display }}</h6>
+                                    {% if file.description %}
+                                    <small class="text-muted">{{ file.description }}</small>
+                                    {% endif %}
+                                </div>
+                                <div class="btn-group">
+                                    <a href="{{ file.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Ajouté par {{ file.uploaded_by.get_full_name }} le {{ file.created_at|date:"d/m/Y H:i" }}
+                            </small>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-file-alt fa-2x mb-2"></i>
+                            <p>Aucun fichier</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

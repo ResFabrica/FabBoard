@@ -1,0 +1,454 @@
+/* Styles pour Select2 */
+.select2-container {
+    width: 100% !important;
+}
+
+.select2-selection__choice {
+    margin: 1px !important;
+}
+
+.editable-users {
+    cursor: pointer;
+    min-height: 20px;
+}
+
+.editable-users:hover {
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 3px;
+}
+
+.editable-tags {
+    cursor: pointer;
+    min-height: 20px;
+}
+
+.editable-tags:hover {
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 3px;
+}
+
+.select2-tags.d-none {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Styles responsifs */
+@media (max-width: 767.98px) {
+    .table th:not(.mobile-show),
+    .table td:not(.mobile-show) {
+        display: none !important;
+    }
+    .col-title {
+        width: auto;
+    }
+    .col-status {
+        width: 30px;
+    }
+    .col-assigned {
+        width: 100px;
+    }
+    .task-item .text-muted {
+        display: none;
+    }
+    .table td {
+        padding: 0.4rem;
+    }
+    .header-actions .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.8rem;
+    }
+    .header-actions .btn i {
+        font-size: 0.8rem;
+        margin-right: 0.2rem;
+    }
+    h1 {
+        font-size: 1.3rem;
+    }
+}
+
+/* Styles pour l'en-tête fixe */
+.sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.sticky-header .table {
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.sticky-header th {
+    background-color: white;
+    padding: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+/* Styles pour le tableau des tâches */
+.task-table {
+    width: 100%;
+}
+
+.col-status {
+    width: 40px;
+}
+
+.col-title {
+    width: 35%;
+}
+
+.col-assigned {
+    width: 15%;
+}
+
+.col-deadline {
+    width: 90px;
+}
+
+.col-tags {
+    width: 15%;
+}
+
+.col-actions {
+    width: 80px;
+}
+
+.col-custom-field {
+    width: 100px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Styles pour le panneau latéral */
+body .offcanvas.offcanvas-end {
+    width: 800px !important;
+}
+
+@media (max-width: 991.98px) {
+    body .offcanvas.offcanvas-end {
+        width: 500px !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    body .offcanvas.offcanvas-end {
+        width: 100% !important;
+    }
+}
+
+/* Styles pour la recherche */
+.search-container {
+    position: relative;
+    min-width: 200px;
+}
+
+.search-container .clear-search {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #6c757d;
+    display: none;
+    font-size: 0.8rem;
+}
+
+.search-container .clear-search:hover {
+    color: #343a40;
+}
+
+.search-container input:not(:placeholder-shown) + .clear-search {
+    display: block;
+}
+
+.highlight {
+    background-color: rgba(255, 255, 0, 0.3);
+}
+
+/* Styles pour la recherche et les transitions */
+.card {
+    transition: opacity 0.3s ease-in-out, margin 0.3s ease-in-out;
+    margin-bottom: 0.5rem !important;
+}
+
+.task-item {
+    transition: opacity 0.3s ease-in-out;
+}
+
+.card.hidden,
+.task-item.hidden {
+    opacity: 0;
+    margin: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* Styles pour les tags de section */
+.section-tag {
+    cursor: pointer;
+    transition: opacity 0.2s ease-in-out;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.section-tag:hover {
+    opacity: 0.8;
+}
+
+.section-tag.active {
+    box-shadow: 0 0 0 1px #fff, 0 0 0 2px currentColor;
+}
+
+.clear-filter-btn {
+    display: none;
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    color: #6c757d;
+    background-color: #fff;
+    border: 1px solid #6c757d;
+    border-radius: 0.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-filter-btn:hover {
+    color: #fff;
+    background-color: #6c757d;
+}
+
+.clear-filter-btn.visible {
+    display: inline-block;
+}
+
+/* Styles pour la description des tâches */
+.task-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-height: 1.5em;
+    line-height: 1.5em;
+    font-size: 0.75rem;
+    color: #6c757d;
+    opacity: 0.8;
+    position: relative;
+}
+
+.task-description:hover::after {
+    content: attr(data-full-description);
+    position: absolute;
+    left: 0;
+    top: 100%;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    width: 300px;
+    max-height: 150px;
+    overflow-y: auto;
+    white-space: normal;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #495057;
+    opacity: 1;
+}
+
+/* Style pour masquer les tâches complétées */
+.task-item.hidden-completed {
+    display: none !important;
+}
+
+/* Optimisation des en-têtes de section */
+.card-header {
+    padding: 0.5rem 0.75rem;
+}
+
+.card-title {
+    font-size: 0.9rem;
+    margin-bottom: 0 !important;
+}
+
+.card-body {
+    padding: 0 !important;
+}
+
+/* Optimisation des boutons d'action */
+.btn-group .btn {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+/* Optimisation des badges */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+    margin: 0.1rem;
+}
+
+/* Optimisation des formulaires */
+.form-control-sm {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+/* Optimisation des en-têtes */
+.header-actions {
+    gap: 0.5rem;
+}
+
+.header-actions .search-container input {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+/* Optimisation des marges générales */
+.row {
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+}
+
+.col-12 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+/* Optimisation des tableaux */
+.table td {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+/* Optimisation des formulaires éditables */
+.editable input,
+.editable select {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+/* Optimisation des toasts */
+.toast {
+    font-size: 0.85rem;
+}
+
+.toast-header {
+    padding: 0.4rem 0.75rem;
+}
+
+.toast-body {
+    padding: 0.5rem 0.75rem;
+}
+
+/* Styles pour le drag & drop */
+.task-list tr {
+    display: table-row !important;
+    width: 100%;
+}
+
+.task-list tr td {
+    display: table-cell !important;
+}
+
+.sortable-ghost {
+    opacity: 0.5;
+    background-color: #f8f9fa;
+}
+
+.sortable-drag {
+    background-color: #ffffff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.15);
+}
+
+/* Styles pour les tags */
+.select2-result-tag {
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.tag-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.tag-name {
+    display: inline-block;
+}
+
+/* Styles pour l'édition des champs personnalisés */
+.custom-field-editor {
+    min-width: 100px;
+}
+
+.custom-field-editor .form-control-sm,
+.custom-field-editor .form-select-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.custom-field-editor .form-check {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+}
+
+/* Styles pour les champs éditables */
+.editable {
+    position: relative;
+    cursor: pointer;
+}
+
+/* Masquer les éléments d'édition par défaut */
+.editable input,
+.editable select,
+.editable .select2-container {
+    display: none;
+}
+
+/* Afficher les éléments d'édition quand .editing est actif */
+.editable.editing input,
+.editable.editing select,
+.editable.editing .select2-container {
+    display: block !important;
+    width: 100% !important;
+}
+
+/* Styles pour Select2 */
+.select2-container {
+    z-index: 1060;
+    min-width: 200px;
+}
+
+/* Afficher l'icône d'édition au survol */
+.editable:hover::after {
+    content: "✎";
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+}
+
+/* Masquer l'affichage en lecture seule pendant l'édition */
+.editable.editing .display {
+    display: none;
+}
+
+/* Afficher l'affichage en lecture seule par défaut */
+.editable .display {
+    display: block;
+} 

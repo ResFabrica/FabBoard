@@ -13,6 +13,7 @@ import json
 import csv
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 User = get_user_model()
 
@@ -591,3 +592,44 @@ def register_with_invitation(request, token):
         'fablab': fablab,
         'invitation': True
     })
+
+@require_POST
+def update_expanded_sections(request):
+    if request.user.is_authenticated:
+        try:
+            print("Corps de la requête brut:", request.body)  # Debug log
+            data = json.loads(request.body)
+            print(f"Données reçues (type): {type(data)}")  # Debug log
+            print(f"Données reçues (contenu): {data}")  # Debug log
+            expanded_sections = data.get('expanded_sections', {})
+            print(f"Sections à sauvegarder (type): {type(expanded_sections)}")  # Debug log
+            print(f"Sections à sauvegarder (contenu): {expanded_sections}")  # Debug log
+            
+            # S'assurer que expanded_sections est un dictionnaire
+            if not isinstance(expanded_sections, dict):
+                print(f"Type incorrect pour expanded_sections: {type(expanded_sections)}")  # Debug log
+                expanded_sections = {}
+            
+            # Sauvegarder les données
+            request.user.profile.expanded_sections = expanded_sections
+            request.user.profile.save()
+            
+            # S'assurer que les données sont correctement sérialisées en JSON
+            saved_sections = json.dumps(expanded_sections)
+            print(f"Sections sauvegardées (JSON brut): {saved_sections}")  # Debug log
+            
+            # Vérifier que le JSON est valide
+            try:
+                json.loads(saved_sections)
+                print("JSON validé avec succès")  # Debug log
+            except json.JSONDecodeError as e:
+                print(f"Erreur de validation JSON: {e}")  # Debug log
+            
+            return JsonResponse({
+                'status': 'success',
+                'expanded_sections': saved_sections
+            })
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde: {str(e)}")  # Debug log
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)

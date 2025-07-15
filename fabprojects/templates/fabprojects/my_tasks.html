@@ -52,7 +52,7 @@
                                 <tbody>
                                     {% for task in tasks %}
                                         <tr class="{% if task.is_completed %}table-secondary{% endif %}"
-                                            onclick="window.location.href='{% url 'fabprojects:task_edit' task.id %}'">
+                                            onclick="window.location.href='{% url 'fabprojects:view_detail' task.section.view.id %}?task_id={{ task.id }}'">
                                             <td class="text-center mobile-show">
                                                 <i class="fas fa-check-circle task-checkbox cursor-pointer"
                                                    style="font-size: 1.2rem; cursor: pointer; color: {% if task.is_completed %}#28a745{% else %}#dee2e6{% endif %};"
@@ -102,7 +102,7 @@
                                             </td>
                                             <td class="text-center">
                                                 <div class="btn-group">
-                                                    <a href="{% url 'fabprojects:task_edit' task.id %}?panel=1" 
+                                                    <a href="{% url 'fabprojects:task_edit' task.id %}" 
                                                        class="btn btn-sm btn-outline-primary task-edit"
                                                        title="Modifier">
                                                         <i class="fas fa-edit"></i>
@@ -150,7 +150,8 @@
 
         // Gérer la complétion des tâches
         document.querySelectorAll('.task-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('click', function() {
+            checkbox.addEventListener('click', function(e) {
+                e.stopPropagation(); // Empêcher la redirection
                 const taskId = this.dataset.taskId;
                 fetch(`{% url 'fabprojects:task_toggle_complete' 0 %}`.replace('0', taskId), {
                     method: 'POST',

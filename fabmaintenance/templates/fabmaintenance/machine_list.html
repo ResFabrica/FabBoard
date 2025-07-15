@@ -3,6 +3,144 @@
 
 {% block title %}Machines - FabBoard{% endblock %}
 
+{% block extra_css %}
+<style>
+    .maintenance-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    .maintenance-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .maintenance-card .card-img-top {
+        height: 200px;
+        object-fit: cover;
+        transition: all 0.3s ease;
+    }
+    
+    .maintenance-card:hover .card-img-top {
+        transform: scale(1.05);
+    }
+    
+    .maintenance-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .maintenance-card .card-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .maintenance-card .card-subtitle {
+        font-size: 0.9rem;
+        color: var(--secondary-color);
+    }
+    
+    .maintenance-card .alert {
+        border-radius: 10px;
+        margin-top: 1rem;
+        border: none;
+        background-color: rgba(255, 193, 7, 0.1);
+    }
+    
+    .maintenance-card .alert h6 {
+        color: var(--warning-color);
+        font-weight: 600;
+    }
+    
+    .maintenance-card .alert ul li {
+        color: var(--warning-color);
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .maintenance-card .card-footer {
+        background: transparent;
+        border-top: 1px solid rgba(0,0,0,0.05);
+        padding: 1rem 1.5rem;
+    }
+    
+    .maintenance-card .btn {
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+    }
+    
+    .maintenance-card .btn-group .btn {
+        padding: 0.5rem;
+    }
+    
+    .fablab-title {
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(53, 167, 255, 0.1);
+    }
+    
+    .welcome-alert {
+        border-radius: 15px;
+        border: none;
+        background-color: rgba(53, 167, 255, 0.1);
+        padding: 1.5rem;
+    }
+    
+    .welcome-alert h4 {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .welcome-alert ol {
+        margin-top: 1rem;
+        padding-left: 1.5rem;
+    }
+    
+    .welcome-alert li {
+        margin-bottom: 0.5rem;
+        color: var(--secondary-color);
+    }
+    
+    .modal-content {
+        border-radius: 15px;
+        border: none;
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid rgba(0,0,0,0.05);
+        padding: 1.5rem;
+    }
+    
+    .form-control {
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(53, 167, 255, 0.25);
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -13,7 +151,7 @@
     </div>
 
     {% if not fablabs_with_machines %}
-    <div class="alert alert-info">
+    <div class="welcome-alert">
         <h4 class="alert-heading">Bienvenue sur FabBoard !</h4>
         <p>Pour commencer à utiliser l'application :</p>
         <ol>
@@ -26,20 +164,19 @@
 
     {% for fablab_data in fablabs_with_machines %}
     <div class="mb-5">
-        <h2 class="h3 mb-4">
-            <i class="fas fa-building text-primary"></i> {{ fablab_data.fablab.name }}
+        <h2 class="fablab-title">
+            <i class="fas fa-building me-2"></i> {{ fablab_data.fablab.name }}
         </h2>
         
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             {% for machine in fablab_data.machines %}
             <div class="col">
-                <div class="card h-100 maintenance-card shadow-sm">
+                <div class="card h-100 maintenance-card">
                     {% if machine.image %}
                     <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}">
                         <img src="{{ machine.image.url }}" 
                              class="card-img-top" 
                              alt="{{ machine.name }}"
-                             style="height: 200px; object-fit: cover; cursor: pointer;"
                              title="Voir les détails de {{ machine.name }}">
                     </a>
                     {% else %}
@@ -51,15 +188,15 @@
                     {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ machine.name }}</h5>
-                        <h6 class="card-subtitle mb-2 text-muted">{{ machine.machine_type.name }}</h6>
+                        <h6 class="card-subtitle mb-2">{{ machine.machine_type.name }}</h6>
                         
                         {% if machine.upcoming_maintenance %}
-                        <div class="alert alert-warning">
+                        <div class="alert">
                             <h6 class="mb-2">Maintenances à venir (7 jours):</h6>
                             <ul class="list-unstyled mb-0">
                                 {% for maintenance in machine.upcoming_maintenance %}
                                 <li>
-                                    <i class="fas fa-tools"></i>
+                                    <i class="fas fa-tools me-2"></i>
                                     {{ maintenance.maintenance_type.name }} - 
                                     {{ maintenance.scheduled_date|date:"d/m/Y" }}
                                 </li>
@@ -68,10 +205,10 @@
                         </div>
                         {% endif %}
                     </div>
-                    <div class="card-footer bg-transparent border-top-0">
+                    <div class="card-footer">
                         <div class="d-flex justify-content-between">
                             <a href="{% url 'fabmaintenance:machine_detail' machine.pk %}" class="btn btn-outline-primary">
-                                <i class="fas fa-eye"></i> Détails
+                                <i class="fas fa-eye me-2"></i> Détails
                             </a>
                             <div class="btn-group">
                                 <a href="{% url 'fabmaintenance:machine_edit' machine.pk %}" class="btn btn-outline-secondary">

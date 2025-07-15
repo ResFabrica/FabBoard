@@ -4,37 +4,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}FabBoard{% endblock %}</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{% block title %}Res Fabrica{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <!-- SoftUI Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/soft-ui-dashboard@1.0.7/assets/css/nucleo-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/soft-ui-dashboard@1.0.7/assets/css/nucleo-svg.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/soft-ui-dashboard@1.0.7/assets/css/soft-ui-dashboard.min.css" rel="stylesheet">
     <style>
-        .maintenance-card {
-            transition: transform 0.2s;
+        :root {
+            --primary-color: #35A7FF;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --info-color: #17a2b8;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --sidebar-width: 180px;
         }
-        .maintenance-card:hover {
-            transform: translateY(-5px);
-        }
-        .due-soon {
-            border-left: 5px solid #ffc107;
-        }
-        .overdue {
-            border-left: 5px solid #dc3545;
-        }
+        
         body {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            background-color: #f8f9fa;
         }
+        
         .content {
             flex: 1 0 auto;
+            margin-left: var(--sidebar-width);
+            padding: 15px;
+            transition: margin-left 0.3s;
+            margin-top: 50px;
         }
-        .footer {
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            z-index: 1030;
+            transition: all 0.3s;
+            overflow-y: auto;
+        }
+        
+        .sidebar-header {
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+            height: 50px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar-menu {
+            padding: 0.5rem 0;
+        }
+        
+        .sidebar-menu .nav-link {
+            padding: 0.4rem 0.75rem;
+            color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            border-radius: 0;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .sidebar-menu .nav-link:hover {
+            background: rgba(53, 167, 255, 0.1);
+            color: var(--primary-color);
+        }
+        
+        .sidebar-menu .nav-link.active {
+            background: rgba(53, 167, 255, 0.1);
+            color: var(--primary-color);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .sidebar-menu .nav-link i {
+            margin-right: 6px;
+            width: 14px;
+            text-align: center;
+            font-size: 0.85rem;
             flex-shrink: 0;
-            background-color: #f8f9fa;
-            border-top: 1px solid #dee2e6;
         }
+        
+        .navbar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: var(--sidebar-width);
+            height: 50px;
+            background: white !important;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            transition: left 0.3s;
+            z-index: 1020;
+        }
+        
+        .navbar-brand img {
+            filter: brightness(0) invert(1);
+        }
+        
         .nav-avatar {
             width: 32px;
             height: 32px;
@@ -46,166 +125,319 @@
             font-size: 0.9rem;
             margin-right: 8px;
         }
-        .navbar-brand img {
-            filter: brightness(0) invert(1);
+        
+        .card {
+            border: none;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+            border-radius: 15px;
         }
-        .navbar {
-            background-color: #35A7FF !important;
+        
+        .card-header {
+            background: white;
+            border-bottom: 1px solid #eee;
+            border-radius: 15px 15px 0 0 !important;
         }
-        .navbar-brand {
-            font-weight: bold;
+        
+        .btn {
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .footer {
+            margin-left: var(--sidebar-width);
+            background: white;
+            border-top: 1px solid #eee;
+            padding: 1rem 0;
+            transition: margin-left 0.3s;
+        }
+        
+        /* Styles pour les sous-menus */
+        .sidebar-menu .collapse {
+            background: rgba(0,0,0,0.02);
+            margin-left: 0;
+            padding-left: 0;
+        }
+        
+        .sidebar-menu .collapse .nav {
+            list-style: none !important;
+            padding-left: 0 !important;
+            margin-left: 0 !important;
+        }
+        
+        .sidebar-menu .collapse .nav-link {
+            padding-left: 2.5rem;
+            font-size: 0.8rem;
+            position: relative;
+        }
+        
+        .sidebar-menu .collapse .nav-link:hover {
+            background: rgba(53, 167, 255, 0.05);
+        }
+
+        .sidebar-menu .nav {
+            list-style: none !important;
+            padding-left: 0 !important;
+            margin-left: 0 !important;
+        }
+        
+        .sidebar-menu .nav-item {
+            position: relative;
+        }
+        
+        .sidebar-menu .collapse {
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+        }
+        
+        .sidebar-menu .collapse .nav-link {
+            padding-left: 2.5rem !important;
+            margin-left: 0 !important;
+        }
+        
+        .sidebar-menu .nav-item .nav-link {
+            padding-left: 0.75rem !important;
+        }
+        
+        /* Style pour le bouton de toggle du sidebar */
+        #sidebarToggle {
+            color: var(--secondary-color);
+            padding: 0.5rem;
+            margin-right: 1rem;
+        }
+        
+        #sidebarToggle:hover {
+            color: var(--primary-color);
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .content, .navbar, .footer {
+                margin-left: 0;
+                left: 0;
+                transition: margin-left 0.3s ease-in-out;
+            }
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            .content.active, .navbar.active, .footer.active {
+                margin-left: var(--sidebar-width);
+            }
+            .navbar {
+                position: fixed;
+                width: 100%;
+                z-index: 1030;
+            }
+            .content {
+                margin-top: 60px;
+            }
+        }
+
+        .nav-divider {
+            height: 1px;
+            background-color: rgba(0,0,0,0.1);
+            margin: 0.5rem 0;
         }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body class="h-100">
-    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
-        <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
             <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
                 <img src="{% static 'img/thumLogo.png' %}" alt="Res Fabrica" height="30" class="me-2">
                 FabBoard
             </a>
-            {% if user.is_authenticated %}
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="machinesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-tools"></i> Machines
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="machinesDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabmaintenance:machine_list' %}">
-                                    <i class="fas fa-list"></i> Liste des machines
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabmaintenance:machine_catalogue' %}">
-                                    <i class="fas fa-plus"></i> Nouvelle machine
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="calendarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-calendar-alt"></i> Calendrier
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="calendarDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabcalendar:calendar' %}">
-                                    <i class="fas fa-calendar"></i> Vue calendrier
-                                </a>
-                            </li>
+        </div>
+        {% if user.is_authenticated %}
+        {{ request.user.profile.expanded_sections|json_script:"expanded-sections-data" }}
+        <div class="sidebar-menu" id="sidebar-menu">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Tableau de bord
+                    </a>
+                </li>
+                <div class="nav-divider"></div>
+                <li class="nav-item">
+                    <a class="nav-link dropdown-toggle" data-bs-target="#machinesSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                        <i class="fas fa-tools"></i>
+                        Machines
+                    </a>
+                    <div class="collapse" id="machinesSubmenu">
+                        <div class="nav flex-column">
+                            <a class="nav-link" href="{% url 'fabmaintenance:machine_list' %}">
+                                <i class="fas fa-list"></i> Liste
+                            </a>
+                            <a class="nav-link" href="{% url 'fabmaintenance:machine_catalogue' %}">
+                                <i class="fas fa-plus"></i> Nouvelle
+                            </a>
+                        </div>
+                    </div>
+                </li>
+                <div class="nav-divider"></div>
+                <li class="nav-item">
+                    <a class="nav-link dropdown-toggle" data-bs-target="#calendarSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                        <i class="fas fa-calendar-alt"></i>
+                        Calendrier
+                    </a>
+                    <div class="collapse" id="calendarSubmenu">
+                        <div class="nav flex-column">
+                            <a class="nav-link" href="{% url 'fabcalendar:calendar' %}">
+                                <i class="fas fa-calendar"></i> Vue calendrier
+                            </a>
                             {% for fablab in user.fablabs.all %}
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabcalendar:calendar' %}?fablab={{ fablab.id }}">
-                                    <i class="fas fa-building"></i> {{ fablab.name }}
-                                </a>
-                            </li>
+                            <a class="nav-link" href="{% url 'fabcalendar:calendar' %}?fablab={{ fablab.id }}">
+                                <i class="fas fa-building"></i> {{ fablab.name }}
+                            </a>
                             {% endfor %}
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="projectsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-project-diagram"></i> Projets
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="projectsDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabprojects:home' %}">
-                                    <i class="fas fa-home"></i> Accueil Projets
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabprojects:view_list' %}">
-                                    <i class="fas fa-list"></i> Toutes les Vues
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabprojects:my_tasks' %}">
-                                    <i class="fas fa-tasks"></i> Mes Tâches
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabprojects:fablab_tasks' %}">
-                                    <i class="fas fa-clipboard-list"></i> Tâches FabLab
-                                </a>
-                            </li>
+                        </div>
+                    </div>
+                </li>
+                <div class="nav-divider"></div>
+                <li class="nav-item">
+                    <a class="nav-link dropdown-toggle" data-bs-target="#projectsSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                        <i class="fas fa-project-diagram"></i>
+                        Projets
+                    </a>
+                    <div class="collapse" id="projectsSubmenu">
+                        <div class="nav flex-column">
                             {% if user_views %}
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <h6 class="dropdown-header">Mes Vues</h6>
-                                </li>
-                                {% for view in user_views %}
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'fabprojects:view_detail' view.id %}">
-                                        <i class="fas fa-columns"></i> {{ view.name }}
-                                    </a>
-                                </li>
-                                {% endfor %}
+                            <div class="nav-divider"></div>
+                            {% for view in user_views %}
+                            <a class="nav-link" href="{% url 'fabprojects:view_detail' view.id %}">
+                                <i class="fas fa-columns"></i> {{ view.name }}
+                            </a>
+                            {% endfor %}
                             {% endif %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabprojects:view_create' %}">
-                                    <i class="fas fa-plus"></i> Nouvelle Vue
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    {% if user.is_superuser or user.admin_fablabs.exists %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-cog"></i> Administration
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabusers:admin_dashboard' %}">
-                                    <i class="fas fa-tachometer-alt"></i> Tableau de bord
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabusers:fablab_users' %}">
-                                    <i class="fas fa-users-cog"></i> Gestion des Utilisateurs
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'fabusers:fablab_admin' %}">
-                                    <i class="fas fa-building"></i> Gestion des FabLabs
-                                </a>
-                            </li>
+                            <div class="nav-divider"></div>
+                            <a class="nav-link" href="{% url 'fabprojects:home' %}">
+                                <i class="fas fa-home"></i> Accueil
+                            </a>
+                            <a class="nav-link" href="{% url 'fabprojects:view_list' %}">
+                                <i class="fas fa-list"></i> Toutes les Vues
+                            </a>
+                            
+                            
+                            <a class="nav-link" href="{% url 'fabprojects:my_tasks' %}">
+                                <i class="fas fa-tasks"></i> Mes Tâches
+                            </a>
+                            <a class="nav-link" href="{% url 'fabprojects:fablab_tasks' %}">
+                                <i class="fas fa-clipboard-list"></i> Tâches FabLab
+                            </a>
+                        </div>
+                    </div>
+                </li>
+                <div class="nav-divider"></div>
+                <li class="nav-item">
+                    <a class="nav-link dropdown-toggle" data-bs-target="#jobsSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                        <i class="fas fa-briefcase"></i>
+                        FabJobs
+                    </a>
+                    <div class="collapse" id="jobsSubmenu">
+                        <div class="nav flex-column">
+                            <a class="nav-link" href="{% url 'fabjobs:dashboard' %}">
+                                <i class="fas fa-tachometer-alt"></i> Tableau de bord
+                            </a>
+                            <a class="nav-link" href="{% url 'fabjobs:job_list' %}">
+                                <i class="fas fa-list"></i> Liste des jobs
+                            </a>
+                            <a class="nav-link" href="{% url 'fabjobs:job_create' %}">
+                                <i class="fas fa-plus"></i> Nouveau job
+                            </a>
+                            <a class="nav-link" href="{% url 'fabjobs:material_list' %}">
+                                <i class="fas fa-boxes"></i> Matériaux
+                            </a>
+                        </div>
+                    </div>
+                </li>
+                {% if user.is_superuser or user.admin_fablabs.exists %}
+                <div class="nav-divider"></div>
+                <li class="nav-item">
+                    <a class="nav-link dropdown-toggle" data-bs-target="#adminSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                        <i class="fas fa-cog"></i>
+                        Administration
+                    </a>
+                    <div class="collapse" id="adminSubmenu">
+                        <div class="nav flex-column">
+                            <a class="nav-link" href="{% url 'fabusers:admin_dashboard' %}">
+                                <i class="fas fa-tachometer-alt"></i> Tableau de bord
+                            </a>
+                            <a class="nav-link" href="{% url 'fabusers:fablab_users' %}">
+                                <i class="fas fa-users-cog"></i> Utilisateurs
+                            </a>
+                            <a class="nav-link" href="{% url 'fabusers:fablab_admin' %}">
+                                <i class="fas fa-building"></i> FabLabs
+                            </a>
                             {% if user.is_superuser %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'admin:index' %}">
-                                    <i class="fas fa-cogs"></i> Django Admin
-                                </a>
-                            </li>
+                            <a class="nav-link" href="{% url 'admin:index' %}">
+                                <i class="fas fa-cogs"></i> Django Admin
+                            </a>
                             {% endif %}
-                        </ul>
-                    </li>
-                    {% endif %}
-                </ul>
-                <div class="navbar-nav">
-                    <a href="{% url 'fabusers:profile' %}" class="nav-link d-flex align-items-center">
+                        </div>
+                    </div>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <button class="btn btn-link d-md-none" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="ms-auto d-flex align-items-center">
+                {% if user.is_authenticated %}
+                <div class="dropdown">
+                    <a href="#" class="nav-link d-flex align-items-center me-3 dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="nav-avatar" style="background-color: {{ user.profile.avatar_color|default:'#007bff' }}">
                             {{ user.get_initials }}
                         </div>
                         {{ user.get_full_name|default:user.username }}
                     </a>
-                    <form action="{% url 'fabusers:logout' %}" method="post" class="nav-item">
-                        {% csrf_token %}
-                        <button type="submit" class="nav-link border-0 bg-transparent">
-                            <i class="fas fa-sign-out-alt"></i> Déconnexion
-                        </button>
-                    </form>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'fabusers:profile' %}">
+                            <i class="fas fa-user me-2"></i>Mon profil
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form action="{% url 'fabusers:logout' %}" method="post" class="dropdown-item">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-link nav-link p-0">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </div>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </nav>
 
-    <div class="container content">
+    <div class="content">
         {% if messages %}
             {% for message in messages %}
                 {% if message.tags == 'error' %}
@@ -241,7 +473,7 @@
         {% endblock %}
     </div>
 
-    <footer class="footer py-3">
+    <footer class="footer">
         <div class="container">
             <div class="row">
                 <div class="col-12 text-center mb-3">
@@ -267,6 +499,164 @@
     <!-- jQuery first, then Bootstrap Bundle with Popper -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SoftUI Theme -->
+    <script src="https://cdn.jsdelivr.net/npm/soft-ui-dashboard@1.0.7/assets/js/core/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/soft-ui-dashboard@1.0.7/assets/js/core/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/soft-ui-dashboard@1.0.7/assets/js/plugins/perfect-scrollbar.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/soft-ui-dashboard@1.0.7/assets/js/plugins/smooth-scrollbar.min.js"></script>
+    <script>
+        // Toggle sidebar on mobile
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            const sidebar = document.querySelector('.sidebar');
+            const content = document.querySelector('.content');
+            const navbar = document.querySelector('.navbar');
+            const footer = document.querySelector('.footer');
+            
+            sidebar.classList.toggle('active');
+            content.classList.toggle('active');
+            navbar.classList.toggle('active');
+            footer.classList.toggle('active');
+            
+            // Empêcher le défilement du body quand le menu est ouvert
+            document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+        });
+
+        // Fermer le menu quand on clique en dehors
+        document.addEventListener('click', function(event) {
+            const sidebar = document.querySelector('.sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth <= 768 && 
+                sidebar.classList.contains('active') && 
+                !sidebar.contains(event.target) && 
+                !sidebarToggle.contains(event.target)) {
+                sidebar.classList.remove('active');
+                document.querySelector('.content').classList.remove('active');
+                document.querySelector('.navbar').classList.remove('active');
+                document.querySelector('.footer').classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fonction pour sauvegarder l'état des sous-menus
+            function saveSubmenuStates(menuId, forceState) {
+                const states = {};
+                document.querySelectorAll('.nav-link.dropdown-toggle').forEach(toggle => {
+                    const currentMenuId = toggle.getAttribute('data-bs-target');
+                    if (currentMenuId) {
+                        const menu = document.querySelector(currentMenuId);
+                        if (menu) {
+                            // Si c'est le menu en cours de modification, on force son état
+                            if (currentMenuId === menuId && forceState !== undefined) {
+                                states[currentMenuId] = forceState;
+                                console.log('État forcé:', states[currentMenuId]);
+                            } else {
+                                states[currentMenuId] = menu.classList.contains('show');
+                            }
+                        }
+                    }
+                });
+
+                console.log('États à sauvegarder:', states);
+
+                // Récupérer le token CSRF
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+                // Préparer les données
+                const data = {
+                    expanded_sections: states
+                };
+                console.log('Données à envoyer:', data);
+
+                // Envoyer l'état au serveur
+                fetch('{% url "fabusers:update_expanded_sections" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Réponse du serveur:', data);
+                    if (data.status === 'success') {
+                        // Mettre à jour les données dans le script
+                        const scriptElement = document.getElementById('expanded-sections-data');
+                        if (scriptElement) {
+                            scriptElement.textContent = data.expanded_sections;
+                        }
+                    } else {
+                        console.error('Erreur lors de la sauvegarde des états des sous-menus:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                });
+            }
+
+            // Fonction pour charger l'état des sous-menus
+            function loadSubmenuStates() {
+                try {
+                    const expandedSectionsData = document.getElementById('expanded-sections-data');
+                    if (!expandedSectionsData) {
+                        console.log('No expanded sections data found');
+                        return;
+                    }
+                    
+                    const sections = JSON.parse(expandedSectionsData.textContent);
+                    console.log('Loading submenu states:', sections);
+                    
+                    Object.entries(sections).forEach(([menuId, isExpanded]) => {
+                        const menu = document.querySelector(menuId);
+                        if (menu) {
+                            if (isExpanded) {
+                                menu.classList.add('show');
+                                const parent = menu.closest('.nav-item');
+                                if (parent) {
+                                    parent.classList.add('active');
+                                }
+                            } else {
+                                menu.classList.remove('show');
+                                const parent = menu.closest('.nav-item');
+                                if (parent) {
+                                    parent.classList.remove('active');
+                                }
+                            }
+                        } else {
+                            console.warn(`Menu not found: ${menuId}`);
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error loading submenu states:', error);
+                }
+            }
+
+            // Gérer le clic sur les toggles des sous-menus
+            document.querySelectorAll('.nav-link.dropdown-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    const menuId = this.getAttribute('data-bs-target');
+                    if (menuId) {
+                        const menu = document.querySelector(menuId);
+                        if (menu) {
+                            // On inverse l'état actuel car Bootstrap va le changer
+                            const willBeExpanded = !menu.classList.contains('show');
+                            saveSubmenuStates(menuId, willBeExpanded);
+                        }
+                    }
+                });
+            });
+
+            // Charger l'état initial des sous-menus
+            loadSubmenuStates();
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html> 

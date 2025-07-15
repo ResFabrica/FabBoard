@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+{% load fabjobs_tags %}
+
+{% block title %}{{ machine.name }} - Jobs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-2">
+                            {% if machine.image %}
+                            <img src="{{ machine.image.url }}" 
+                                 alt="{{ machine.name }}" 
+                                 class="img-fluid rounded"
+                                 style="max-height: 100px; object-fit: cover;">
+                            {% else %}
+                            <img src="{% static 'images/default_machine.png' %}" 
+                                 alt="Machine par défaut" 
+                                 class="img-fluid rounded"
+                                 style="max-height: 100px; object-fit: cover;">
+                            {% endif %}
+                        </div>
+                        <div class="col-md-10">
+                            <h4 class="mb-0">{{ machine.name }}</h4>
+                            <p class="text-muted mb-0">{{ machine.machine_type.name }} - {{ machine.fablab.name }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if jobs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nom</th>
+                                    <th>Statut</th>
+                                    <th>Créé le</th>
+                                    <th>Assigné à</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for job in jobs %}
+                                <tr>
+                                    <td>{{ job.id }}</td>
+                                    <td>{{ job.name }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ job.status|status_color }}">
+                                            {{ job.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ job.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ job.assigned_to.get_full_name|default:"-" }}</td>
+                                    <td>
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="job_id" value="{{ job.id }}">
+                                            <select name="status" class="form-select form-select-sm d-inline-block w-auto" 
+                                                    onchange="this.form.submit()">
+                                                {% for status_value, status_label in status_choices %}
+                                                <option value="{{ status_value }}" 
+                                                        {% if status_value == job.status %}selected{% endif %}>
+                                                    {{ status_label }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Aucun job trouvé pour cette machine.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sauvegarder la valeur originale lors du focus
+    document.querySelectorAll('select[name="status"]').forEach(select => {
+        select.addEventListener('focus', function() {
+            this.setAttribute('data-original-value', this.value);
+        });
+    });
+});
+</script>
+{% endblock %} 
