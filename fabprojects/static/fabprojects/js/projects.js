@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
             new Sortable(section, {
                 group: 'tasks',
                 animation: 150,
+                distance: 7,
                 onEnd: function(evt) {
                     const taskId = evt.item.dataset.taskId;
                     const newSectionId = evt.to.dataset.sectionId;

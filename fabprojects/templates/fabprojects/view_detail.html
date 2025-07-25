@@ -8,6 +8,13 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <link href="{% static 'css/view_detail.css' %}" rel="stylesheet" />
+<style>
+.user-select-none {
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+</style>
 {% endblock %}
 
 {% block project_content %}
@@ -153,7 +160,7 @@
                         <table class="table align-middle mb-0 task-table">
                             <tbody class="task-list" data-section-id="{{ section.id }}">
                                 {% for task in section.tasks.all %}
-                                <tr class="task-item{% if task.is_completed %} table-secondary{% endif %}" 
+                                <tr class="task-item{% if task.is_completed %} table-secondary{% endif %} user-select-none" 
                                     data-task-id="{{ task.id }}"
                                     data-edit-url="{% url 'fabprojects:task_edit' task.id %}">
                                     <!-- État -->
@@ -174,6 +181,11 @@
                                              data-field="title">
                                             <div class="display">
                                                 <span>{{ task.title }}</span>
+                                                {% if task.assignments.count > 1 %}
+                                                <span class="badge bg-warning ms-1" title="Assignée à {{ task.assignments.count }} sections">
+                                                    <i class="fas fa-link"></i> {{ task.assignments.count }}
+                                                </span>
+                                                {% endif %}
                                             </div>
                                             <input type="text" 
                                                    class="form-control form-control-sm"
@@ -326,6 +338,188 @@
                                     </td>
                                 </tr>
                                 {% endfor %}
+                                
+                                <!-- Afficher aussi les tâches assignées via TaskAssignment -->
+                                {% for assignment in section.task_assignments.all %}
+                                {% if assignment.task.section != section %}
+                                <tr class="task-item{% if assignment.task.is_completed %} table-secondary{% endif %} user-select-none" 
+                                    data-task-id="{{ assignment.task.id }}"
+                                    data-edit-url="{% url 'fabprojects:task_edit' assignment.task.id %}"
+                                    style="opacity: 0.8;">
+                                    <!-- État -->
+                                    <td class="text-center mobile-show col-status">
+                                        <i class="fas fa-check-circle task-checkbox cursor-pointer"
+                                           style="font-size: 1.2rem; cursor: pointer; color: {% if assignment.task.is_completed %}#28a745{% else %}#dee2e6{% endif %};"
+                                           data-task-id="{{ assignment.task.id }}"
+                                           role="button"
+                                           title="{% if assignment.task.is_completed %}Marquer comme non terminé{% else %}Marquer comme terminé{% endif %}">
+                                        </i>
+                                    </td>
+                                    
+                                    <!-- Titre et Description -->
+                                    <td class="mobile-show col-title">
+                                        <div class="editable" 
+                                             data-type="text"
+                                             data-task-id="{{ assignment.task.id }}"
+                                             data-field="title">
+                                            <div class="display">
+                                                <span>{{ assignment.task.title }}</span>
+                                                <span class="badge bg-info ms-1" title="Assignée depuis {{ assignment.task.section.view.fablab.name }} - {{ assignment.task.section.view.name }}">
+                                                    <i class="fas fa-external-link-alt"></i>
+                                                </span>
+                                            </div>
+                                            <input type="text" 
+                                                   class="form-control form-control-sm"
+                                                   value="{{ assignment.task.title }}"
+                                                   data-original-value="{{ assignment.task.title }}">
+                                        </div>
+                                        {% if assignment.task.description %}
+                                        <div class="task-description" data-full-description="{{ assignment.task.description|markdown|safe }}"></div>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <!-- Assignés -->
+                                    <td class="mobile-show col-assigned">
+                                        <div class="editable-users" data-task-id="{{ assignment.task.id }}">
+                                            {% for user in assignment.task.assigned_users.all %}
+                                                <span class="badge" style="background-color: {{ user.profile.avatar_color|default:'#6c757d' }}">
+                                                    {{ user.get_full_name|default:user.username }}
+                                                </span>
+                                            {% empty %}
+                                                <span class="text-muted">-</span>
+                                            {% endfor %}
+                                        </div>
+                                        <select class="form-control select2-users d-none" multiple style="display: none !important;">
+                                            {% for user in assignment.task.assigned_users.all %}
+                                                <option value="{{ user.id }}" selected data-avatar-color="{{ user.profile.avatar_color|default:'#6c757d' }}">{{ user.get_full_name|default:user.username }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    
+                                    <!-- Date limite -->
+                                    <td>
+                                        <div class="editable"
+                                             data-type="date"
+                                             data-task-id="{{ assignment.task.id }}"
+                                             data-field="deadline">
+                                            <span class="display {% if assignment.task.deadline < now %}text-danger{% endif %}">
+                                                {% if assignment.task.deadline %}
+                                                    {{ assignment.task.deadline|date:"d/m/Y" }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </span>
+                                            <input type="date" 
+                                                   class="form-control form-control-sm"
+                                                   value="{% if assignment.task.deadline %}{{ assignment.task.deadline|date:'Y-m-d' }}{% endif %}"
+                                                   data-original-value="{% if assignment.task.deadline %}{{ assignment.task.deadline|date:'Y-m-d' }}{% endif %}">
+                                        </div>
+                                    </td>
+                                    
+                                    <!-- Tags -->
+                                    <td>
+                                        <div class="editable-tags" data-task-id="{{ assignment.task.id }}">
+                                            <div class="d-flex flex-wrap gap-1">
+                                            {% for tag in assignment.task.tags.all %}
+                                                <span class="badge" style="background-color: {{ tag.color }}">
+                                                    {{ tag.name }}
+                                                </span>
+                                            {% empty %}
+                                                <span class="text-muted">-</span>
+                                            {% endfor %}
+                                            </div>
+                                        </div>
+                                        <select class="form-control select2-tags d-none" multiple style="display: none !important; visibility: hidden;">
+                                            {% for tag in assignment.task.tags.all %}
+                                                <option value="{{ tag.id }}" selected data-color="{{ tag.color }}">{{ tag.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    
+                                    <!-- Champs personnalisés -->
+                                    {% for field in view.custom_fields.all %}
+                                    <td>
+                                        {% with value=assignment.task|get_custom_field_value:field %}
+                                        <div class="editable" 
+                                             data-type="{{ field.field_type }}"
+                                             data-task-id="{{ assignment.task.id }}"
+                                             data-field-id="{{ field.id }}"
+                                             data-field="custom_field">
+                                            {% if field.field_type == 'boolean' %}
+                                                <div class="form-check">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           {% if value and value.value == 'true' %}checked{% endif %}
+                                                           data-original-value="{% if value %}{{ value.value }}{% else %}false{% endif %}">
+                                                </div>
+                                            {% elif field.field_type == 'choice' %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <select class="form-select form-select-sm"
+                                                        data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                                    <option value="">-</option>
+                                                    {% if field.choices %}
+                                                        {% with choices=field.choices|split:"\n" %}
+                                                            {% for choice in choices %}
+                                                                {% with choice_value=choice|trim %}
+                                                                    <option value="{{ choice_value }}" 
+                                                                            {% if value and value.value == choice_value %}selected{% endif %}>
+                                                                        {{ choice_value }}
+                                                                    </option>
+                                                                {% endwith %}
+                                                            {% endfor %}
+                                                        {% endwith %}
+                                                    {% endif %}
+                                                </select>
+                                            {% elif field.field_type == 'date' %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value|date:"d/m/Y" }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <input type="date" 
+                                                       class="form-control form-control-sm"
+                                                       value="{% if value %}{{ value.value }}{% endif %}"
+                                                       data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                            {% elif field.field_type == 'number' %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <input type="number" 
+                                                       class="form-control form-control-sm"
+                                                       value="{% if value %}{{ value.value }}{% endif %}"
+                                                       data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                            {% else %}
+                                                <div class="display">
+                                                    <span>{% if value %}{{ value.value }}{% else %}-{% endif %}</span>
+                                                </div>
+                                                <input type="text" 
+                                                       class="form-control form-control-sm"
+                                                       value="{% if value %}{{ value.value }}{% endif %}"
+                                                       data-original-value="{% if value %}{{ value.value }}{% endif %}">
+                                            {% endif %}
+                                        </div>
+                                        {% endwith %}
+                                    </td>
+                                    {% endfor %}
+                                    
+                                    <!-- Actions -->
+                                    <td class="text-center col-actions">
+                                        <div class="btn-group">
+                                            <a href="{% url 'fabprojects:task_edit' assignment.task.id %}?panel=1" 
+                                               class="btn btn-sm btn-outline-primary task-edit"
+                                               title="Modifier">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'fabprojects:task_delete' assignment.task.id %}" 
+                                               class="btn btn-sm btn-outline-danger"
+                                               title="Supprimer">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -403,6 +597,7 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+<script src="{% static 'fabprojects/js/task_form_panel.js' %}"></script>
 
 <style>
 /* Styles pour le drag & drop */
@@ -1676,37 +1871,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 $(document).ready(function() {
-    // Ajout de logs pour déboguer le select2
-    console.log('Document ready - Initialisation du script');
-    
-    // Vérifier l'état initial des select2-tags
-    $('.select2-tags').each(function() {
-        console.log('État initial select2-tags:', {
-            element: this,
-            isHidden: $(this).hasClass('d-none'),
-            classes: $(this).attr('class'),
-            display: $(this).css('display'),
-            visibility: $(this).css('visibility'),
-            isSelect2: $(this).hasClass('select2-hidden-accessible')
-        });
-    });
-
     // Forcer le masquage des select2-tags au chargement
     $('.select2-tags').addClass('d-none').css({
         'display': 'none',
         'visibility': 'hidden'
     });
-    
-    // Vérifier après le masquage forcé
-    console.log('Après masquage forcé - État des select2-tags:', 
-        $('.select2-tags').map(function() {
-            return {
-                isHidden: $(this).hasClass('d-none'),
-                display: $(this).css('display'),
-                visibility: $(this).css('visibility')
-            };
-        }).get()
-    );
 
     // Initialisation des select2 du panneau latéral
     function initializeSidebarForm() {
@@ -1814,18 +1983,14 @@ $(document).ready(function() {
 
     // Initialisation des select2 inline pour l'édition dans le tableau
     function initInlineUserSelect2(element) {
-        console.log('Initialisation du select2 pour les utilisateurs');
-        
         // S'assurer que l'élément est un objet jQuery valide
         const $element = $(element);
         if (!$element.length) {
-            console.error('Élément select2-users non trouvé');
             return;
         }
         
         // Détruire le select2 s'il existe déjà
         if ($element.hasClass('select2-hidden-accessible')) {
-            console.log('Destruction du select2 existant');
             $element.select2('destroy');
         }
         
@@ -1930,7 +2095,6 @@ $(document).ready(function() {
 
             return select2;
         } catch (error) {
-            console.error('Erreur lors de l\'initialisation de Select2 pour les utilisateurs:', error);
             return null;
         }
     }
@@ -1940,19 +2104,16 @@ $(document).ready(function() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('Clic sur editable-users');
         const $container = $(this).parent();
         const $select = $container.find('.select2-users');
         
         if (!$select.length) {
-            console.error('Select2-users non trouvé');
             return;
         }
         
         // Détruire tous les autres select2 ouverts
         $('.select2-users, .select2-tags').not($select).each(function() {
             if ($(this).hasClass('select2-hidden-accessible')) {
-                console.log('Destruction des autres select2');
                 $(this).select2('destroy');
             }
             $(this).addClass('d-none');
@@ -2019,18 +2180,14 @@ $(document).ready(function() {
     }
 
     function initInlineTagSelect2(element) {
-        console.log('Initialisation du select2 pour les tags');
-        
         // S'assurer que l'élément est un objet jQuery valide
         const $element = $(element);
         if (!$element.length) {
-            console.error('Élément select2-tags non trouvé');
             return;
         }
         
         // Détruire le select2 s'il existe déjà
         if ($element.hasClass('select2-hidden-accessible')) {
-            console.log('Destruction du select2 existant');
             $element.select2('destroy');
         }
         
@@ -2066,13 +2223,7 @@ $(document).ready(function() {
                 templateSelection: formatTagSelection
             });
 
-            // Log après l'initialisation
-            console.log('Select2 tags initialisé:', {
-                element: element,
-                isHidden: $element.hasClass('d-none'),
-                select2Container: $element.next('.select2-container'),
-                select2ContainerDisplay: $element.next('.select2-container').css('display')
-            });
+
 
             select2.on('change', function() {
                 const selectedTags = $(this).val();
@@ -2117,7 +2268,6 @@ $(document).ready(function() {
 
             return select2;
         } catch (error) {
-            console.error('Erreur lors de l\'initialisation de Select2 pour les tags:', error);
             return null;
         }
     }
@@ -2127,19 +2277,16 @@ $(document).ready(function() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('Clic sur editable-tags');
         const $container = $(this).parent();
         const $select = $container.find('.select2-tags');
         
         if (!$select.length) {
-            console.error('Select2-tags non trouvé');
             return;
         }
         
         // Détruire tous les autres select2 ouverts
         $('.select2-users, .select2-tags').not($select).each(function() {
             if ($(this).hasClass('select2-hidden-accessible')) {
-                console.log('Destruction des autres select2');
                 $(this).select2('destroy');
             }
             $(this).addClass('d-none');
